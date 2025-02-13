@@ -1,0 +1,28 @@
+[package]
+name = "url-preview"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance URL preview generator for messaging and social media applications"
+license = "MIT"
+repository = "https://github.com/ZhangHanDong/url_preview"
+
+[dependencies]
+tokio = { version = "1.28", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+scraper = "0.17"
+url = "2.4"
+thiserror = "1.0"
+async-trait = "0.1"
+image = "0.24"
+lru = "0.11"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"]}
+tracing-appender = "0.2"
+unicode-width = "0.1"
+
+[dev-dependencies]
+colored = "2.0"
+indicatif = "0.17"
+tokio = { version = "1.28", features = ["full", "test-util"] }
