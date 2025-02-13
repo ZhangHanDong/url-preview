@@ -58,10 +58,7 @@ pub fn log_preview_card(preview: &Preview, url: &str) {
     }
 
     let url_wrapped = wrap_text(url, CONTENT_WIDTH - 5);
-    let title_wrapped = wrap_text(
-        preview.title.as_deref().unwrap_or("N/A"),
-        CONTENT_WIDTH - 7,
-    );
+    let title_wrapped = wrap_text(preview.title.as_deref().unwrap_or("N/A"), CONTENT_WIDTH - 7);
     let desc_wrapped = wrap_text(
         preview.description.as_deref().unwrap_or("N/A"),
         CONTENT_WIDTH - 6,

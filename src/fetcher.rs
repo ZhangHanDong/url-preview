@@ -483,7 +483,8 @@ fn parse_github_link_header(link_str: &str) -> Option<u32> {
         if link.contains("rel=\"last\"") {
             if let Some(page) = link
                 .split(';')
-                .next().map(|url| url.trim_matches(|c| c == '<' || c == '>' || c == ' '))
+                .next()
+                .map(|url| url.trim_matches(|c| c == '<' || c == '>' || c == ' '))
                 .and_then(|url| url.split('=').last())
                 .and_then(|page| page.parse().ok())
             {

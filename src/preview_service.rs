@@ -169,8 +169,6 @@ impl PreviewService {
     pub async fn generate_preview(&self, url: &str) -> Result<Preview, PreviewError> {
         debug!("Starting preview generation for URL: {}", url);
 
-
-
         // match &result {
         //     Ok(preview) => {
         //         log_preview_card(preview, url);
