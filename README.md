@@ -9,10 +9,11 @@
 
 [![Crates.io](https://img.shields.io/crates/v/link-preview.svg)](https://crates.io/crates/url-preview)
 [![Documentation](https://docs.rs/link-preview/badge.svg)](https://docs.rs/url-preview)
-![Build](https://github.com/ZhangHanDong/url-preview/workflows/build/badge.svg)
+
+<!-- ![Build](https://github.com/ZhangHanDong/url-preview/workflows/build/badge.svg)
 ![Clippy](https://github.com/ZhangHanDong/url-preview/workflows/clippy/badge.svg)
 ![Formatter](https://github.com/ZhangHanDong/url-preview/workflows/fmt/badge.svg)
-![Tests](https://github.com/ZhangHanDong/url-preview/workflows/test/badge.svg)
+![Tests](https://github.com/ZhangHanDong/url-preview/workflows/test/badge.svg) -->
 
 </div>
 
