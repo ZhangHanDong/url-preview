@@ -4,13 +4,9 @@ use url_preview::{log_error_card, log_preview_card, setup_logging, LogConfig, Pr
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 初始化日志系统
     log_initialize();
+    let preview_service = PreviewService::default();
 
-    // 创建预览服务
-    let preview_service = PreviewService::new(1);
-
-    // 处理任何 URL，服务会自动选择合适的处理器
     let urls = vec![
         "https://www.rust-lang.org",
         "https://github.com/zed-industries/zed",
@@ -19,10 +15,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "https://x.com/blackanger/status/1888945450650362251",
     ];
 
-    for url in urls {
+    info!("=== First fetch (from Network):");
+    for url in urls.clone() {
+        let start = std::time::Instant::now();
         match preview_service.generate_preview(url).await {
             Ok(preview) => {
+                let elapsed = start.elapsed();
                 log_preview_card(&preview, url);
+                info!("Time taken for {}: {:?}", url, elapsed);
+                info!("Title: {:?}", preview.title);
+            }
+            Err(e) => {
+                log_error_card(url, &e);
+            }
+        }
+    }
+
+    info!("=== Second fetch (from cache):");
+    for url in urls {
+        let start = std::time::Instant::now();
+        match preview_service.generate_preview(url).await {
+            Ok(preview) => {
+                let elapsed = start.elapsed();
+                log_preview_card(&preview, url);
+                info!("Time taken for {}: {:?}", url, elapsed);
+                info!("Title: {:?}", preview.title);
             }
             Err(e) => {
                 log_error_card(url, &e);

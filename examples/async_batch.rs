@@ -5,14 +5,12 @@ use url_preview::{PreviewGenerator, UrlPreviewGenerator};
 async fn main() -> Result<(), Box<dyn Error>> {
     let generator = UrlPreviewGenerator::new(1000);
 
-    // 创建多个 URL 的异步任务
     let urls = vec![
         "https://www.rust-lang.org",
         "https://github.com",
         "https://news.ycombinator.com",
     ];
 
-    // 使用 tokio::spawn 创建多个异步任务
     let handles: Vec<_> = urls
         .into_iter()
         .map(|url| {
@@ -28,7 +26,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect();
 
-    // 等待所有任务完成
     for handle in handles {
         let (url, result) = handle.await?;
         match result {

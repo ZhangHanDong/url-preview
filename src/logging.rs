@@ -1,4 +1,3 @@
-use crate::github_types::GitHubRepository;
 use crate::utils::truncate_str;
 use crate::Preview;
 use std::fmt::Display;
@@ -33,7 +32,7 @@ fn create_separator(width: usize, ch: char) -> String {
 }
 
 pub fn log_preview_card(preview: &Preview, url: &str) {
-    const CARD_WIDTH: usize = 80; // 卡片总宽度
+    const CARD_WIDTH: usize = 80;
     const CONTENT_WIDTH: usize = CARD_WIDTH - 2;
 
     fn wrap_text(text: &str, width: usize) -> String {
@@ -47,7 +46,6 @@ pub fn log_preview_card(preview: &Preview, url: &str) {
                 wrapped.push_str(word);
                 line_length = word.len() + 2;
             } else {
-                // 不会超出，直接添加
                 if line_length > 0 {
                     wrapped.push(' ');
                     line_length += 1;
@@ -77,7 +75,6 @@ pub fn log_preview_card(preview: &Preview, url: &str) {
         CONTENT_WIDTH - 6,
     );
 
-    // 创建水平分隔线
     let horizontal_line = "═".repeat(CARD_WIDTH - 2);
 
     info!(

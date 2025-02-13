@@ -1,5 +1,5 @@
 use thiserror::Error;
-use tracing::{debug, error, info, warn};
+use tracing::{error, warn};
 
 #[derive(Debug, Error)]
 pub enum PreviewError {
@@ -28,7 +28,6 @@ pub enum PreviewError {
     ExternalServiceError { service: String, message: String },
 }
 
-// 为错误实现日志记录特征
 impl PreviewError {
     pub fn log(&self) {
         match self {

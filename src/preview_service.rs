@@ -3,18 +3,33 @@ use crate::{
     is_twitter_url, Fetcher, Preview, PreviewError, PreviewGenerator, UrlPreviewGenerator,
 };
 use std::sync::Arc;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, instrument, warn};
 use url::Url;
+use tokio::sync::Semaphore;
 
 /// PreviewService provides a unified preview generation service
 /// It can automatically identify different types of URLs and use appropriate processing strategies
+#[derive(Clone)]
 pub struct PreviewService {
-    default_generator: Arc<UrlPreviewGenerator>,
-    twitter_generator: Arc<UrlPreviewGenerator>,
-    github_generator: Arc<UrlPreviewGenerator>,
+    pub default_generator: Arc<UrlPreviewGenerator>,
+    pub twitter_generator: Arc<UrlPreviewGenerator>,
+    pub github_generator: Arc<UrlPreviewGenerator>,
+    // Max Concurrent Requests
+    semaphore: Arc<Semaphore>,
 }
 
+pub const MAX_CONCURRENT_REQUESTS: usize = 500;
+
 impl PreviewService {
+    /// Creates a new preview service instance with default cache capacity
+    pub fn default() -> Self {
+        // Set 1000 cache entries for each generator
+        // This means that up to 1000 different URL previews can be cached for each type (Normal/Twitter/GitHub)
+        // 1000 cache entries take about 1-2MB memory
+        // Total of 3-6MB for three generators is reasonable for modern systems
+        Self::new(1000)
+    }
+
     pub fn new(cache_capacity: usize) -> Self {
         debug!(
             "Initializing PreviewService with cache capacity: {}",
@@ -32,9 +47,10 @@ impl PreviewService {
         ));
 
         let github_generator = Arc::new(
-            // 新增
             UrlPreviewGenerator::new_with_fetcher(cache_capacity, Fetcher::new_github_client()),
         );
+
+        let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_REQUESTS));
 
         debug!("PreviewService initialized successfully");
 
@@ -42,6 +58,7 @@ impl PreviewService {
             default_generator,
             twitter_generator,
             github_generator,
+            semaphore,
         }
     }
 
@@ -61,7 +78,6 @@ impl PreviewService {
         ));
 
         let github_generator = Arc::new(
-            // 新增
             UrlPreviewGenerator::new_with_fetcher(
                 config.cache_capacity,
                 config
@@ -70,12 +86,15 @@ impl PreviewService {
             ),
         );
 
+        let semaphore = Arc::new(Semaphore::new(config.max_concurrent_requests));
+
         debug!("PreviewService initialized with custom configuration");
 
         Self {
             default_generator,
             twitter_generator,
             github_generator,
+            semaphore,
         }
     }
 
@@ -95,6 +114,10 @@ impl PreviewService {
 
     #[instrument(level = "debug", skip(self))]
     async fn generate_github_preview(&self, url: &str) -> Result<Preview, PreviewError> {
+        if let Some(cached) = self.github_generator.cache.get(url).await {
+            return Ok(cached);
+        }
+
         let (owner, repo_name) = Self::extract_github_info(url).ok_or_else(|| {
             warn!("GitHub URL parsing failed: {}", url);
             PreviewError::ExtractError("Invalid GitHub URL format".into())
@@ -119,6 +142,8 @@ impl PreviewService {
                         "https://github.githubassets.com/favicons/favicon.svg".to_string(),
                     ),
                 };
+
+                self.github_generator.cache.set(url.to_string(), preview.clone()).await;
 
                 Ok(preview)
             }
@@ -193,12 +218,40 @@ impl PreviewService {
     }
 }
 
-#[derive(Default)]
+impl PreviewService {
+    pub fn new_with_concurrency(config: PreviewServiceConfig) -> Self {
+        let semaphore = Arc::new(Semaphore::new(config.max_concurrent_requests));
+        let default_generator = Arc::new(UrlPreviewGenerator::new(config.cache_capacity));
+        let twitter_generator = Arc::new(UrlPreviewGenerator::new(config.cache_capacity));
+        let github_generator = Arc::new(UrlPreviewGenerator::new(config.cache_capacity));
+
+        PreviewService {
+            default_generator,
+            twitter_generator,
+            github_generator,
+            semaphore,
+        }
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    pub async fn generate_preview_with_concurrency(
+        &self,
+        url: &str,
+    ) -> Result<Preview, PreviewError> {
+        let permit = self.semaphore.clone().acquire_owned().await;
+        let preview = self.generate_preview(url).await;
+        drop(permit);
+        preview
+    }
+}
+
+#[derive(Default, Clone)]
 pub struct PreviewServiceConfig {
     pub cache_capacity: usize,
     pub default_fetcher: Option<Fetcher>,
     pub twitter_fetcher: Option<Fetcher>,
     pub github_fetcher: Option<Fetcher>,
+    pub max_concurrent_requests: usize,
 }
 
 impl PreviewServiceConfig {
@@ -208,6 +261,7 @@ impl PreviewServiceConfig {
             default_fetcher: None,
             twitter_fetcher: None,
             github_fetcher: None,
+            max_concurrent_requests: MAX_CONCURRENT_REQUESTS,
         }
     }
 

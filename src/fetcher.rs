@@ -5,7 +5,7 @@ use reqwest::{header::HeaderMap, Client};
 use scraper::{Html, Selector};
 use serde::Deserialize;
 use std::time::Duration;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, instrument, warn};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct OEmbedResponse {
@@ -31,22 +31,45 @@ pub enum FetchResult {
 
 impl Fetcher {
     pub fn new() -> Self {
+        let user_agent = "url_preview/0.1.0";
+        let timeout = Duration::from_secs(10);
+        debug!("Fetcher initialized with default configuration");
+
+        Self::new_with_custom_config(timeout, user_agent)
+    }
+
+    pub fn new_with_custom_config(timeout: Duration, user_agent: &str) -> Self {
         let client = Client::builder()
-            .timeout(Duration::from_secs(10))
-            .user_agent("url_preview/0.1.0")
+            .timeout(timeout)
+            .user_agent(user_agent)
+            .pool_max_idle_per_host(10)
             .build()
             .unwrap_or_else(|e| {
                 error!(error = %e, "Failed to create HTTP client");
                 panic!("Failed to initialize HTTP client: {}", e);
             });
-
-        debug!("Fetcher initialized with default configuration");
-        Self { client }
+        Fetcher { client }
     }
 
     pub fn with_client(client: Client) -> Self {
         Self { client }
     }
+
+    pub async fn fetch_batch(&self, urls: Vec<&str>) -> Result<Vec<FetchResult>, PreviewError> {
+        let futures: Vec<_> = urls.into_iter().map(|url| self.fetch(url)).collect();
+        let results = futures::future::join_all(futures).await;
+
+        let mut responses = Vec::new();
+        for result in results {
+            match result {
+                Ok(response) => responses.push(response),
+                Err(e) => return Err(e),
+            }
+        }
+
+        Ok(responses)
+    }
+
 
     #[instrument(level = "debug", skip(self), err)]
     pub async fn fetch_with_backoff(&self, url: &str) -> Result<String, PreviewError> {

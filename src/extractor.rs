@@ -1,7 +1,7 @@
 use super::is_twitter_url;
 use crate::{Preview, PreviewError};
 use scraper::{Html, Selector};
-use tracing::{debug, error, info, instrument, warn};
+use tracing::debug;
 
 /// Metadata extractor, responsible for extracting preview information from webpage content
 #[derive(Clone)]

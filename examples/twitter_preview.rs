@@ -5,12 +5,10 @@ use url_preview::{setup_logging, Fetcher, LogConfig, PreviewGenerator, UrlPrevie
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    // 初始化日志系统
     log_initialize();
 
     info!("Starting Twitter/X Preview Example");
 
-    // // 创建 Twitter 专用客户端
     let generator = UrlPreviewGenerator::new_with_fetcher(1000, Fetcher::new_twitter_client());
 
     let url = "https://x.com/blackanger/status/1888945450650362251";
@@ -20,7 +18,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Ok(preview) => {
             info!("Preview generated successfully");
 
-            // 使用结构化日志记录预览信息
             info!(
                 url = %preview.url,
                 title = %preview.title.as_deref().unwrap_or("N/A"),
@@ -30,7 +27,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 "Preview details"
             );
 
-            // 对每个字段进行详细的日志记录
             if let Some(title) = &preview.title {
                 debug!(title = %title, "Preview title found");
             } else {
@@ -56,7 +52,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
         }
         Err(e) => {
-            // 错误处理使用结构化日志
             error!(error = %e, "Failed to generate preview");
 
             if let Some(source) = e.source() {
@@ -66,8 +61,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     "Detailed error information"
                 );
             }
-
-            // 记录故障排查建议
             warn!("Please check the following:");
             warn!("1. URL accessibility");
             warn!("2. Network connectivity");

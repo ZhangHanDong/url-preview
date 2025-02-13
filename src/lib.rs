@@ -1,7 +1,4 @@
 use async_trait::async_trait;
-use std::path::PathBuf;
-use thiserror::Error;
-use tracing::{info, warn};
 
 mod cache;
 mod error;
@@ -16,10 +13,10 @@ mod utils;
 pub use cache::Cache;
 pub use error::PreviewError;
 pub use extractor::MetadataExtractor;
-pub use fetcher::Fetcher;
+pub use fetcher::{Fetcher, FetcherConfig,FetchResult};
 pub use logging::{log_error_card, log_preview_card, setup_logging, LogConfig, LogLevelGuard};
 pub use preview_generator::UrlPreviewGenerator;
-pub use preview_service::{PreviewService, PreviewServiceConfig};
+pub use preview_service::{PreviewService, PreviewServiceConfig, MAX_CONCURRENT_REQUESTS};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Preview {

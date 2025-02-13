@@ -5,7 +5,7 @@ use url::Url;
 
 #[derive(Clone)]
 pub struct UrlPreviewGenerator {
-    cache: Cache,
+    pub cache: Cache,
     pub fetcher: Fetcher,
     extractor: MetadataExtractor,
 }
@@ -28,6 +28,7 @@ impl UrlPreviewGenerator {
     }
 }
 
+// For Twitter url and Normal url
 #[async_trait]
 impl PreviewGenerator for UrlPreviewGenerator {
     async fn generate_preview(&self, url: &str) -> Result<Preview, PreviewError> {
