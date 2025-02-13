@@ -1,6 +1,6 @@
 [package]
 name = "url-preview"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 description = "High-performance URL preview generator for messaging and social media applications"
 license = "MIT"

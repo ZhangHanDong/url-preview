@@ -1,10 +1,11 @@
 use std::time::Instant;
 use std::{error::Error, path::PathBuf};
-use tokio::time::Duration;
 use tokio::time::timeout;
+use tokio::time::Duration;
 use tracing::{info, warn};
 use url_preview::{
-    setup_logging, Fetcher, FetchResult, FetcherConfig, LogConfig, PreviewService, PreviewServiceConfig,
+    setup_logging, FetchResult, Fetcher, FetcherConfig, LogConfig, PreviewService,
+    PreviewServiceConfig,
 };
 
 const BASE_URLS: &[&str] = &[
@@ -76,11 +77,14 @@ async fn test_improved_batch_processing(
     info!("Starting batch processing with {} URLs", urls.len());
     let start = Instant::now();
 
-    let url_strings: Vec<&str> = urls.iter()
-        .map(|u| u.url.as_str())
-        .collect();
+    let url_strings: Vec<&str> = urls.iter().map(|u| u.url.as_str()).collect();
 
-    match service.default_generator.fetcher.fetch_batch(url_strings).await {
+    match service
+        .default_generator
+        .fetcher
+        .fetch_batch(url_strings)
+        .await
+    {
         Ok(results) => {
             let duration = start.elapsed();
             info!("Batch fetch completed in {:?}", duration);
@@ -97,17 +101,18 @@ async fn test_improved_batch_processing(
                     FetchResult::OEmbed(oembed) => {
                         info!(
                             "URL: {} - Successfully fetched oEmbed content from {}",
-                            urls[idx].url,
-                            oembed.provider_name
+                            urls[idx].url, oembed.provider_name
                         );
                     }
                 }
             }
 
-            let html_count = results.iter()
+            let html_count = results
+                .iter()
                 .filter(|r| matches!(r, FetchResult::Html(_)))
                 .count();
-            let oembed_count = results.iter()
+            let oembed_count = results
+                .iter()
                 .filter(|r| matches!(r, FetchResult::OEmbed(_)))
                 .count();
 
@@ -115,7 +120,10 @@ async fn test_improved_batch_processing(
             info!("Total URLs processed: {}", results.len());
             info!("HTML responses: {}", html_count);
             info!("oEmbed responses: {}", oembed_count);
-            info!("Average time per URL: {:?}", duration / results.len() as u32);
+            info!(
+                "Average time per URL: {:?}",
+                duration / results.len() as u32
+            );
         }
         Err(e) => {
             warn!("Batch processing failed: {}", e);
@@ -196,7 +204,12 @@ async fn compare_processing_methods(urls: &[UrlWithDelay]) -> Result<(), Box<dyn
 
     let start = Instant::now();
     for url_data in urls {
-        match timeout(timeout_duration, regular_service.generate_preview(&url_data.url)).await {
+        match timeout(
+            timeout_duration,
+            regular_service.generate_preview(&url_data.url),
+        )
+        .await
+        {
             Ok(result) => {
                 if let Err(e) = result {
                     warn!("Failed to process {}: {}", url_data.url, e);
@@ -236,7 +249,11 @@ async fn compare_processing_methods(urls: &[UrlWithDelay]) -> Result<(), Box<dyn
             let service = concurrent_service.clone();
             let url = url_data.url.clone();
             async move {
-                timeout(timeout_duration, service.generate_preview_with_concurrency(&url)).await
+                timeout(
+                    timeout_duration,
+                    service.generate_preview_with_concurrency(&url),
+                )
+                .await
             }
         })
         .collect();

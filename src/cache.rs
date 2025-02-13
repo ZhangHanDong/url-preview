@@ -1,7 +1,7 @@
 use crate::Preview;
 use dashmap::DashMap;
-use std::sync::Arc;
 use std::num::NonZeroUsize;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Cache {
@@ -12,7 +12,7 @@ impl Cache {
     pub fn new(capacity: usize) -> Self {
         let capacity = NonZeroUsize::new(capacity).unwrap_or(NonZeroUsize::new(100).unwrap());
         Self {
-            cache: Arc::new(DashMap::with_capacity(capacity.get()))
+            cache: Arc::new(DashMap::with_capacity(capacity.get())),
         }
     }
 
@@ -24,7 +24,6 @@ impl Cache {
         self.cache.insert(key, value);
     }
 }
-
 
 // use crate::Preview;
 // use lru::LruCache;

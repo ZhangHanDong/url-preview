@@ -5,7 +5,7 @@ use url_preview::{log_error_card, log_preview_card, setup_logging, LogConfig, Pr
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     log_initialize();
-    let preview_service = PreviewService::default();
+    let preview_service = PreviewService::new();
 
     let urls = vec![
         "https://www.rust-lang.org",

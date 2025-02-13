@@ -29,6 +29,12 @@ pub enum FetchResult {
     OEmbed(OEmbedResponse),
 }
 
+impl Default for Fetcher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Fetcher {
     pub fn new() -> Self {
         let user_agent = "url_preview/0.1.0";
@@ -69,7 +75,6 @@ impl Fetcher {
 
         Ok(responses)
     }
-
 
     #[instrument(level = "debug", skip(self), err)]
     pub async fn fetch_with_backoff(&self, url: &str) -> Result<String, PreviewError> {
@@ -184,7 +189,6 @@ impl Fetcher {
 
 // for Twitter
 impl Fetcher {
-
     #[instrument(level = "debug")]
     pub fn new_twitter_client() -> Self {
         debug!("Creating Twitter-specific fetcher");
@@ -251,7 +255,6 @@ impl Fetcher {
 
 // for GitHub
 impl Fetcher {
-
     pub fn new_github_client() -> Self {
         debug!("Creating GitHub-specific client");
 
@@ -480,8 +483,7 @@ fn parse_github_link_header(link_str: &str) -> Option<u32> {
         if link.contains("rel=\"last\"") {
             if let Some(page) = link
                 .split(';')
-                .next()
-                .and_then(|url| Some(url.trim_matches(|c| c == '<' || c == '>' || c == ' ')))
+                .next().map(|url| url.trim_matches(|c| c == '<' || c == '>' || c == ' '))
                 .and_then(|url| url.split('=').last())
                 .and_then(|page| page.parse().ok())
             {

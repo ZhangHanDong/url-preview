@@ -4,8 +4,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use url_preview::{
-    Fetcher, FetcherConfig, Preview, PreviewService, PreviewServiceConfig,
-    PreviewError, FetchResult
+    FetchResult, Fetcher, FetcherConfig, Preview, PreviewError, PreviewService,
+    PreviewServiceConfig,
 };
 
 // Mock data for consistent benchmarking
@@ -63,7 +63,10 @@ impl MockFetcher {
     async fn fetch_batch(&self, urls: Vec<&str>) -> Result<Vec<FetchResult>, PreviewError> {
         // Simulate batch processing with consistent latency
         tokio::time::sleep(Duration::from_millis(50 * urls.len() as u64)).await;
-        Ok(urls.iter().map(|_| FetchResult::Html(MOCK_HTML.to_string())).collect())
+        Ok(urls
+            .iter()
+            .map(|_| FetchResult::Html(MOCK_HTML.to_string()))
+            .collect())
     }
 }
 
@@ -71,28 +74,21 @@ fn bench_batch_processing(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("batch_processing");
 
-    group.sample_size(10)
+    group
+        .sample_size(10)
         .measurement_time(Duration::from_secs(20))
         .warm_up_time(Duration::from_secs(5));
 
     let mock_fetcher = MockFetcher;
 
     for &size in BATCH_SIZES {
-        let urls: Vec<&str> = TEST_URLS.iter()
-            .take(size)
-            .copied()
-            .collect();
+        let urls: Vec<&str> = TEST_URLS.iter().take(size).copied().collect();
 
-        group.bench_with_input(
-            BenchmarkId::new("batch_size", size),
-            &urls,
-            |b, urls| {
-                let fetcher = mock_fetcher.clone();
-                b.to_async(&rt).iter(|| async {
-                    black_box(fetcher.fetch_batch(urls.to_vec()).await.unwrap())
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("batch_size", size), &urls, |b, urls| {
+            let fetcher = mock_fetcher.clone();
+            b.to_async(&rt)
+                .iter(|| async { black_box(fetcher.fetch_batch(urls.to_vec()).await.unwrap()) });
+        });
     }
 
     group.finish();
@@ -102,7 +98,8 @@ fn bench_concurrent_processing(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("concurrent_processing");
 
-    group.sample_size(10)
+    group
+        .sample_size(10)
         .measurement_time(Duration::from_secs(20))
         .warm_up_time(Duration::from_secs(5));
 
@@ -119,9 +116,7 @@ fn bench_concurrent_processing(c: &mut Criterion) {
                         .iter()
                         .map(|&url| {
                             let fetcher = fetcher.clone();
-                            async move {
-                                fetcher.fetch(url).await
-                            }
+                            async move { fetcher.fetch(url).await }
                         })
                         .collect();
 
@@ -145,9 +140,8 @@ fn bench_processing_strategies(c: &mut Criterion) {
     // Benchmark batch processing
     group.bench_function("batch_strategy", |b| {
         let fetcher = mock_fetcher.clone();
-        b.to_async(&rt).iter(|| async {
-            black_box(fetcher.fetch_batch(urls.clone()).await.unwrap())
-        });
+        b.to_async(&rt)
+            .iter(|| async { black_box(fetcher.fetch_batch(urls.clone()).await.unwrap()) });
     });
 
     // Benchmark concurrent processing

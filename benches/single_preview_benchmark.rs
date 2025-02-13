@@ -1,9 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use tokio::runtime::Runtime;
-use url_preview::{PreviewService, Cache, Preview};
-use std::time::Duration;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::runtime::Runtime;
+use url_preview::{Cache, Preview, PreviewService};
 
 const MOCK_HTML: &str = r#"<!DOCTYPE html>
 <html>
@@ -21,11 +21,12 @@ const MOCK_HTML: &str = r#"<!DOCTYPE html>
 
 fn bench_single_preview(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
-    let preview_service = PreviewService::default();
+    let preview_service = PreviewService::new();
 
     let mut group = c.benchmark_group("url_preview");
 
-    group.sample_size(50)
+    group
+        .sample_size(50)
         .measurement_time(Duration::from_secs(10))
         .warm_up_time(Duration::from_secs(3));
 
@@ -40,7 +41,7 @@ fn bench_single_preview(c: &mut Criterion) {
                 preview_service
                     .generate_preview("https://www.rust-lang.org")
                     .await
-                    .unwrap()
+                    .unwrap(),
             )
         });
     });
@@ -52,12 +53,7 @@ fn bench_single_preview(c: &mut Criterion) {
         b.to_async(&rt).iter(|| async {
             let current = counter.fetch_add(1, Ordering::SeqCst);
             let unique_url = format!("https://example.com/page{}", current);
-            black_box(
-                preview_service
-                    .generate_preview(&unique_url)
-                    .await
-                    .unwrap()
-            )
+            black_box(preview_service.generate_preview(&unique_url).await.unwrap())
         });
     });
 
@@ -68,7 +64,8 @@ fn bench_cache_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("cache_operations");
 
-    group.sample_size(50)
+    group
+        .sample_size(50)
         .measurement_time(Duration::from_secs(10))
         .warm_up_time(Duration::from_secs(3));
 
@@ -83,20 +80,19 @@ fn bench_cache_operations(c: &mut Criterion) {
         b.to_async(&rt).iter(|| async {
             let current = counter.fetch_add(1, Ordering::SeqCst);
             let key = format!("key{}", current);
-            black_box(
-                cache.set(key, test_preview.clone()).await
-            )
+            black_box(cache.set(key, test_preview.clone()).await)
         });
     });
 
     rt.block_on(async {
-        cache.set("test_key".to_string(), test_preview.clone()).await;
+        cache
+            .set("test_key".to_string(), test_preview.clone())
+            .await;
     });
 
     group.bench_function("cache_read", |b| {
-        b.to_async(&rt).iter(|| async {
-            black_box(cache.get("test_key").await)
-        });
+        b.to_async(&rt)
+            .iter(|| async { black_box(cache.get("test_key").await) });
     });
 
     group.finish();

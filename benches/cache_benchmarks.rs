@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use url_preview::{Cache, Preview, PreviewService, PreviewServiceConfig};
@@ -27,7 +27,8 @@ fn create_mock_preview(url: &str) -> Preview {
 fn bench_cache_scenarios(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("cache_performance");
-    group.sample_size(100)
+    group
+        .sample_size(100)
         .measurement_time(Duration::from_secs(10))
         .warm_up_time(Duration::from_secs(3));
 
@@ -40,7 +41,7 @@ fn bench_cache_scenarios(c: &mut Criterion) {
             &cache_size,
             |b, &size| {
                 b.iter(|| {
-                    let service = PreviewService::new(size);
+                    let service = PreviewService::with_cache_cap(size);
                     black_box(service)
                 });
             },
@@ -127,7 +128,8 @@ fn bench_preview_service_with_cache(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("preview_service_cache");
 
-    group.sample_size(50)
+    group
+        .sample_size(50)
         .measurement_time(Duration::from_secs(15))
         .warm_up_time(Duration::from_secs(5));
 

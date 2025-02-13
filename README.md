@@ -64,7 +64,9 @@ use url_preview::{PreviewService, Preview, PreviewError};
 #[tokio::main]
 async fn main() -> Result<(), PreviewError> {
     // Create a preview service with default settings
-    let preview_service = PreviewService::default();
+    // Equivalent to：
+    //    PreviewService::with_cache_cap(1000)
+    let preview_service = PreviewService::new();
 
     // Generate a preview
     let preview = preview_service
@@ -88,7 +90,7 @@ Process multiple URLs efficiently:
 ```rust
 use url_preview::{PreviewService, Fetcher};
 
-let service = PreviewService::default();
+let service = PreviewService::new();
 let urls = vec![
     "https://www.rust-lang.org",
     "https://github.com/rust-lang/rust"

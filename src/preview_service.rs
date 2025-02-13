@@ -3,9 +3,9 @@ use crate::{
     is_twitter_url, Fetcher, Preview, PreviewError, PreviewGenerator, UrlPreviewGenerator,
 };
 use std::sync::Arc;
+use tokio::sync::Semaphore;
 use tracing::{debug, instrument, warn};
 use url::Url;
-use tokio::sync::Semaphore;
 
 /// PreviewService provides a unified preview generation service
 /// It can automatically identify different types of URLs and use appropriate processing strategies
@@ -20,17 +20,23 @@ pub struct PreviewService {
 
 pub const MAX_CONCURRENT_REQUESTS: usize = 500;
 
+impl Default for PreviewService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PreviewService {
     /// Creates a new preview service instance with default cache capacity
-    pub fn default() -> Self {
+    pub fn new() -> Self {
         // Set 1000 cache entries for each generator
         // This means that up to 1000 different URL previews can be cached for each type (Normal/Twitter/GitHub)
         // 1000 cache entries take about 1-2MB memory
         // Total of 3-6MB for three generators is reasonable for modern systems
-        Self::new(1000)
+        Self::with_cache_cap(1000)
     }
 
-    pub fn new(cache_capacity: usize) -> Self {
+    pub fn with_cache_cap(cache_capacity: usize) -> Self {
         debug!(
             "Initializing PreviewService with cache capacity: {}",
             cache_capacity
@@ -46,9 +52,10 @@ impl PreviewService {
             Fetcher::new_twitter_client(),
         ));
 
-        let github_generator = Arc::new(
-            UrlPreviewGenerator::new_with_fetcher(cache_capacity, Fetcher::new_github_client()),
-        );
+        let github_generator = Arc::new(UrlPreviewGenerator::new_with_fetcher(
+            cache_capacity,
+            Fetcher::new_github_client(),
+        ));
 
         let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_REQUESTS));
 
@@ -67,7 +74,7 @@ impl PreviewService {
 
         let default_generator = Arc::new(UrlPreviewGenerator::new_with_fetcher(
             config.cache_capacity,
-            config.default_fetcher.unwrap_or_else(Fetcher::new),
+            config.default_fetcher.unwrap_or_default(),
         ));
 
         let twitter_generator = Arc::new(UrlPreviewGenerator::new_with_fetcher(
@@ -77,14 +84,12 @@ impl PreviewService {
                 .unwrap_or_else(Fetcher::new_twitter_client),
         ));
 
-        let github_generator = Arc::new(
-            UrlPreviewGenerator::new_with_fetcher(
-                config.cache_capacity,
-                config
-                    .github_fetcher
-                    .unwrap_or_else(Fetcher::new_github_client),
-            ),
-        );
+        let github_generator = Arc::new(UrlPreviewGenerator::new_with_fetcher(
+            config.cache_capacity,
+            config
+                .github_fetcher
+                .unwrap_or_else(Fetcher::new_github_client),
+        ));
 
         let semaphore = Arc::new(Semaphore::new(config.max_concurrent_requests));
 
@@ -143,7 +148,10 @@ impl PreviewService {
                     ),
                 };
 
-                self.github_generator.cache.set(url.to_string(), preview.clone()).await;
+                self.github_generator
+                    .cache
+                    .set(url.to_string(), preview.clone())
+                    .await;
 
                 Ok(preview)
             }
@@ -161,16 +169,7 @@ impl PreviewService {
     pub async fn generate_preview(&self, url: &str) -> Result<Preview, PreviewError> {
         debug!("Starting preview generation for URL: {}", url);
 
-        let result = if is_twitter_url(url) {
-            debug!("Detected Twitter URL, using specialized handler");
-            self.twitter_generator.generate_preview(url).await
-        } else if is_github_url(url) {
-            debug!("Detected GitHub URL, using specialized handler");
-            self.generate_github_preview(url).await
-        } else {
-            debug!("Using default URL handler");
-            self.default_generator.generate_preview(url).await
-        };
+
 
         // match &result {
         //     Ok(preview) => {
@@ -181,7 +180,16 @@ impl PreviewService {
         //     }
         // }
 
-        result
+        if is_twitter_url(url) {
+            debug!("Detected Twitter URL, using specialized handler");
+            self.twitter_generator.generate_preview(url).await
+        } else if is_github_url(url) {
+            debug!("Detected GitHub URL, using specialized handler");
+            self.generate_github_preview(url).await
+        } else {
+            debug!("Using default URL handler");
+            self.default_generator.generate_preview(url).await
+        }
     }
 
     pub async fn generate_github_basic_preview(&self, url: &str) -> Result<Preview, PreviewError> {
