@@ -1,3 +1,21 @@
+<div>
+  <h1 align="center">url-preview</h1>
+  <h4 align="center">
+    🦀 A high-performance Rust library for generating rich URL previews with specialized support for Twitter/X and GitHub.
+  </h4>
+</div>
+
+<div align="center">
+
+[![Crates.io](https://img.shields.io/crates/v/link-preview.svg)](https://crates.io/crates/url-preview)
+[![Documentation](https://docs.rs/link-preview/badge.svg)](https://docs.rs/url-preview)
+![Build](https://github.com/ZhangHanDong/url-preview/workflows/build/badge.svg)
+![Clippy](https://github.com/ZhangHanDong/url-preview/workflows/clippy/badge.svg)
+![Formatter](https://github.com/ZhangHanDong/url-preview/workflows/fmt/badge.svg)
+![Tests](https://github.com/ZhangHanDong/url-preview/workflows/test/badge.svg)
+
+</div>
+
 # URL Preview
 
 A high-performance Rust library for generating rich URL previews with specialized support for Twitter/X and GitHub. This library offers efficient caching, concurrent processing, and comprehensive metadata extraction capabilities.

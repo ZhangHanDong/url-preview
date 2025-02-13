@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "High-performance URL preview generator for messaging and social media applications"
 license = "MIT"
-repository = "https://github.com/ZhangHanDong/url_preview"
+repository = "https://github.com/ZhangHanDong/url-preview"
 
 [dependencies]
 tokio = { version = "1.28", features = ["full"] }
