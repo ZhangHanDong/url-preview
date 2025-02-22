@@ -30,7 +30,7 @@ pub struct Preview {
 
 #[async_trait]
 pub trait PreviewGenerator {
-    async fn generate_preview(&self, url: &str) -> Result<Preview, PreviewError>;
+    async fn generate_preview(&self, url: &str, use_cache:bool) -> Result<Preview, PreviewError>;
 }
 
 pub fn is_twitter_url(url: &str) -> bool {

@@ -31,10 +31,12 @@ impl UrlPreviewGenerator {
 // For Twitter url and Normal url
 #[async_trait]
 impl PreviewGenerator for UrlPreviewGenerator {
-    async fn generate_preview(&self, url: &str) -> Result<Preview, PreviewError> {
-        // Check Cache
-        if let Some(cached) = self.cache.get(url).await {
-            return Ok(cached);
+    async fn generate_preview(&self, url: &str, use_cache: bool) -> Result<Preview, PreviewError> {
+        if use_cache {
+            // Check Cache
+            if let Some(cached) = self.cache.get(url).await {
+                return Ok(cached);
+            }
         }
 
         let _ = Url::parse(url)?;
@@ -50,7 +52,9 @@ impl PreviewGenerator for UrlPreviewGenerator {
             FetchResult::Html(html) => self.extractor.extract(&html, url)?,
         };
         preview.url = url.to_string();
-        self.cache.set(url.to_string(), preview.clone()).await;
+        if use_cache {
+            self.cache.set(url.to_string(), preview.clone()).await;
+        }
         Ok(preview)
     }
 }

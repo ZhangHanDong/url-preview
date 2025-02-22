@@ -118,9 +118,12 @@ impl PreviewService {
     }
 
     #[instrument(level = "debug", skip(self))]
-    async fn generate_github_preview(&self, url: &str) -> Result<Preview, PreviewError> {
-        if let Some(cached) = self.github_generator.cache.get(url).await {
-            return Ok(cached);
+    async fn generate_github_preview(&self, url: &str, use_cache: bool) -> Result<Preview, PreviewError> {
+
+        if use_cache {
+            if let Some(cached) = self.github_generator.cache.get(url).await {
+                return Ok(cached);
+            }
         }
 
         let (owner, repo_name) = Self::extract_github_info(url).ok_or_else(|| {
@@ -148,10 +151,12 @@ impl PreviewService {
                     ),
                 };
 
-                self.github_generator
-                    .cache
-                    .set(url.to_string(), preview.clone())
-                    .await;
+                if use_cache {
+                    self.github_generator
+                        .cache
+                        .set(url.to_string(), preview.clone())
+                        .await;
+                }
 
                 Ok(preview)
             }
@@ -160,7 +165,7 @@ impl PreviewService {
                     error = %e,
                     "Failed to get GitHub basic preview, will use general preview generator as fallback"
                 );
-                self.github_generator.generate_preview(url).await
+                self.github_generator.generate_preview(url, use_cache).await
             }
         }
     }
@@ -180,13 +185,38 @@ impl PreviewService {
 
         if is_twitter_url(url) {
             debug!("Detected Twitter URL, using specialized handler");
-            self.twitter_generator.generate_preview(url).await
+            self.twitter_generator.generate_preview(url, true).await
         } else if is_github_url(url) {
             debug!("Detected GitHub URL, using specialized handler");
-            self.generate_github_preview(url).await
+            self.generate_github_preview(url, true).await
         } else {
             debug!("Using default URL handler");
-            self.default_generator.generate_preview(url).await
+            self.default_generator.generate_preview(url, true).await
+        }
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    pub async fn generate_preview_no_cache(&self, url: &str) -> Result<Preview, PreviewError> {
+        debug!("Starting preview generation for URL: {}", url);
+
+        // match &result {
+        //     Ok(preview) => {
+        //         log_preview_card(preview, url);
+        //     }
+        //     Err(e) => {
+        //         log_error_card(url, e);
+        //     }
+        // }
+
+        if is_twitter_url(url) {
+            debug!("Detected Twitter URL, using specialized handler");
+            self.twitter_generator.generate_preview(url, false).await
+        } else if is_github_url(url) {
+            debug!("Detected GitHub URL, using specialized handler");
+            self.generate_github_preview(url, false).await
+        } else {
+            debug!("Using default URL handler");
+            self.default_generator.generate_preview(url, false).await
         }
     }
 

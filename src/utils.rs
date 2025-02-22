@@ -1,5 +1,7 @@
 use unicode_width::UnicodeWidthChar;
 
+use url::{Url, ParseError};
+
 /// Safely truncate a string, ensuring it is not truncated in the middle of multi-byte characters
 ///
 /// This function will:
@@ -29,6 +31,20 @@ pub fn truncate_str(s: &str, max_width: usize) -> String {
 
     result.push_str("...");
     result
+}
+
+pub fn pickup_host_from_url(url: &str) -> Result<String, ParseError> {
+    let parsed_url = Url::parse(url)?;
+    parsed_url.host_str().map(String::from);
+    let scheme = parsed_url.scheme();
+    let host = parsed_url.host_str().ok_or(url::ParseError::EmptyHost)?;
+
+    let port = parsed_url.port()
+                .and_then(|x| Some(format!(":{}", x)))
+                .or_else(|| Some("".to_string()))
+                .unwrap();
+
+    Ok(format!("{}://{}{}/", scheme, host, port))
 }
 
 #[cfg(test)]
