@@ -1,7 +1,9 @@
 use std::error::Error;
 use std::path::PathBuf;
 use tracing::{debug, error, info, warn};
-use url_preview::{setup_logging, Fetcher, LogConfig, PreviewGenerator, UrlPreviewGenerator, CacheStrategy};
+use url_preview::{
+    setup_logging, CacheStrategy, Fetcher, LogConfig, PreviewGenerator, UrlPreviewGenerator,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -12,7 +14,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let generator = UrlPreviewGenerator::new_with_fetcher(
         1000,
         CacheStrategy::UseCache,
-        Fetcher::new_twitter_client()
+        Fetcher::new_twitter_client(),
     );
 
     let url = "https://x.com/blackanger/status/1888945450650362251";

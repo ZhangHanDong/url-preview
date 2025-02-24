@@ -1,5 +1,5 @@
 use std::error::Error;
-use url_preview::{PreviewGenerator, UrlPreviewGenerator, CacheStrategy};
+use url_preview::{CacheStrategy, PreviewGenerator, UrlPreviewGenerator};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

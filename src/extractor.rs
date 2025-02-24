@@ -150,9 +150,8 @@ impl MetadataExtractor {
     }
 
     fn extract_image(&self, document: &Html) -> Option<String> {
-        let og_image_selector = Selector::parse(
-            "meta[property='og:image'],meta[itemprop='image']"
-        ).ok()?;
+        let og_image_selector =
+            Selector::parse("meta[property='og:image'],meta[itemprop='image']").ok()?;
 
         document
             .select(&og_image_selector)

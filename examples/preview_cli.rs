@@ -2,7 +2,7 @@ use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::error::Error;
 use tokio::time::{sleep, Duration};
-use url_preview::{PreviewGenerator, UrlPreviewGenerator, CacheStrategy};
+use url_preview::{CacheStrategy, PreviewGenerator, UrlPreviewGenerator};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

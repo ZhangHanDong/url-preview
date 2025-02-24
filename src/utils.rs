@@ -1,6 +1,6 @@
 use unicode_width::UnicodeWidthChar;
 
-use url::{Url, ParseError};
+use url::{ParseError, Url};
 
 /// Safely truncate a string, ensuring it is not truncated in the middle of multi-byte characters
 ///
@@ -40,10 +40,10 @@ pub fn pickup_host_from_url(url: &str) -> Result<String, ParseError> {
     let host = parsed_url.host_str().ok_or(url::ParseError::EmptyHost)?;
 
     let port = parsed_url
-                .port()
-                .map(|x| format!(":{}", x))
-                .or_else(|| Some("".to_string()))
-                .unwrap();
+        .port()
+        .map(|x| format!(":{}", x))
+        .or_else(|| Some("".to_string()))
+        .unwrap();
 
     Ok(format!("{}://{}{}/", scheme, host, port))
 }

@@ -5,7 +5,8 @@ use url::Url;
 
 #[derive(Clone, Default)]
 pub enum CacheStrategy {
-    #[default] UseCache,
+    #[default]
+    UseCache,
     NoCache,
     ForceUpdate,
 }
@@ -31,7 +32,7 @@ impl UrlPreviewGenerator {
     pub fn new_with_fetcher(
         cache_capacity: usize,
         cache_strategy: CacheStrategy,
-        fetcher: Fetcher
+        fetcher: Fetcher,
     ) -> Self {
         Self {
             cache: Cache::new(cache_capacity),

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use url_preview::{PreviewGenerator, UrlPreviewGenerator, CacheStrategy, PreviewService};
+    use url_preview::{CacheStrategy, PreviewGenerator, PreviewService, UrlPreviewGenerator};
 
     #[tokio::test]
     async fn test_preview_generator() {
@@ -48,7 +48,6 @@ mod tests {
             let _ = preview_service.generate_preview(url).await.unwrap();
             let cache = preview_service.default_generator.cache.get(url).await;
             assert!(cache.is_none());
-        };
-
+        }
     }
 }
