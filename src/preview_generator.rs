@@ -46,13 +46,10 @@ impl UrlPreviewGenerator {
 #[async_trait]
 impl PreviewGenerator for UrlPreviewGenerator {
     async fn generate_preview(&self, url: &str) -> Result<Preview, PreviewError> {
-        match self.cache_strategy {
-            CacheStrategy::UseCache => {
-                if let Some(cached) = self.cache.get(url).await {
-                    return Ok(cached);
-                }
-            },
-            _ => {},
+        if let CacheStrategy::UseCache = self.cache_strategy {
+            if let Some(cached) = self.cache.get(url).await {
+                return Ok(cached);
+            };
         };
 
         let _ = Url::parse(url)?;
@@ -68,11 +65,8 @@ impl PreviewGenerator for UrlPreviewGenerator {
             FetchResult::Html(html) => self.extractor.extract(&html, url)?,
         };
         preview.url = url.to_string();
-        match self.cache_strategy {
-            CacheStrategy::UseCache | CacheStrategy::ForceUpdate => {
-                self.cache.set(url.to_string(), preview.clone()).await;
-            },
-            _ => {},
+        if let CacheStrategy::UseCache = self.cache_strategy {
+            self.cache.set(url.to_string(), preview.clone()).await;
         };
         Ok(preview)
     }

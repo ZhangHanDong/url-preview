@@ -162,14 +162,11 @@ impl PreviewService {
     #[instrument(level = "debug", skip(self))]
     async fn generate_github_preview(&self, url: &str) -> Result<Preview, PreviewError> {
 
-        match self.github_generator.cache_strategy {
-            CacheStrategy::UseCache => {
-                if let Some(cached) = self.github_generator.cache.get(url).await {
-                    return Ok(cached);
-                }
-            },
-            _ => {}
-        }
+        if let CacheStrategy::UseCache = self.github_generator.cache_strategy {
+            if let Some(cached) = self.github_generator.cache.get(url).await {
+                return Ok(cached);
+            };
+        };
 
         let (owner, repo_name) = Self::extract_github_info(url).ok_or_else(|| {
             warn!("GitHub URL parsing failed: {}", url);
@@ -196,14 +193,11 @@ impl PreviewService {
                     ),
                 };
 
-                match self.github_generator.cache_strategy {
-                    CacheStrategy::UseCache => {
-                        self.github_generator
-                            .cache
-                            .set(url.to_string(), preview.clone())
-                            .await;
-                    },
-                    _ => {}
+                if let CacheStrategy::UseCache = self.github_generator.cache_strategy {
+                    self.github_generator
+                        .cache
+                        .set(url.to_string(), preview.clone())
+                        .await;
                 }
 
                 Ok(preview)

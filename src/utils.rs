@@ -39,8 +39,9 @@ pub fn pickup_host_from_url(url: &str) -> Result<String, ParseError> {
     let scheme = parsed_url.scheme();
     let host = parsed_url.host_str().ok_or(url::ParseError::EmptyHost)?;
 
-    let port = parsed_url.port()
-                .and_then(|x| Some(format!(":{}", x)))
+    let port = parsed_url
+                .port()
+                .map(|x| format!(":{}", x))
                 .or_else(|| Some("".to_string()))
                 .unwrap();
 
