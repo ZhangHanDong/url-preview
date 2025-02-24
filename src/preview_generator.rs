@@ -3,25 +3,39 @@ use crate::{Cache, Fetcher, MetadataExtractor, Preview, PreviewError, PreviewGen
 use async_trait::async_trait;
 use url::Url;
 
+#[derive(Clone, Default)]
+pub enum CacheStrategy {
+    #[default] UseCache,
+    NoCache,
+    ForceUpdate,
+}
+
 #[derive(Clone)]
 pub struct UrlPreviewGenerator {
     pub cache: Cache,
+    pub cache_strategy: CacheStrategy,
     pub fetcher: Fetcher,
     extractor: MetadataExtractor,
 }
 
 impl UrlPreviewGenerator {
-    pub fn new(cache_capacity: usize) -> Self {
+    pub fn new(cache_capacity: usize, cache_strategy: CacheStrategy) -> Self {
         Self {
             cache: Cache::new(cache_capacity),
+            cache_strategy,
             fetcher: Fetcher::new(),
             extractor: MetadataExtractor::new(),
         }
     }
 
-    pub fn new_with_fetcher(cache_capacity: usize, fetcher: Fetcher) -> Self {
+    pub fn new_with_fetcher(
+        cache_capacity: usize,
+        cache_strategy: CacheStrategy,
+        fetcher: Fetcher
+    ) -> Self {
         Self {
             cache: Cache::new(cache_capacity),
+            cache_strategy,
             fetcher,
             extractor: MetadataExtractor::new(),
         }
@@ -31,13 +45,15 @@ impl UrlPreviewGenerator {
 // For Twitter url and Normal url
 #[async_trait]
 impl PreviewGenerator for UrlPreviewGenerator {
-    async fn generate_preview(&self, url: &str, use_cache: bool) -> Result<Preview, PreviewError> {
-        if use_cache {
-            // Check Cache
-            if let Some(cached) = self.cache.get(url).await {
-                return Ok(cached);
-            }
-        }
+    async fn generate_preview(&self, url: &str) -> Result<Preview, PreviewError> {
+        match self.cache_strategy {
+            CacheStrategy::UseCache => {
+                if let Some(cached) = self.cache.get(url).await {
+                    return Ok(cached);
+                }
+            },
+            _ => {},
+        };
 
         let _ = Url::parse(url)?;
         let content = self.fetcher.fetch(url).await?;
@@ -52,9 +68,12 @@ impl PreviewGenerator for UrlPreviewGenerator {
             FetchResult::Html(html) => self.extractor.extract(&html, url)?,
         };
         preview.url = url.to_string();
-        if use_cache {
-            self.cache.set(url.to_string(), preview.clone()).await;
-        }
+        match self.cache_strategy {
+            CacheStrategy::UseCache | CacheStrategy::ForceUpdate => {
+                self.cache.set(url.to_string(), preview.clone()).await;
+            },
+            _ => {},
+        };
         Ok(preview)
     }
 }

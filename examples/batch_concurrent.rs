@@ -5,7 +5,7 @@ use tokio::time::Duration;
 use tracing::{info, warn};
 use url_preview::{
     setup_logging, FetchResult, Fetcher, FetcherConfig, LogConfig, PreviewService,
-    PreviewServiceConfig,
+    PreviewServiceConfig
 };
 
 const BASE_URLS: &[&str] = &[

@@ -15,7 +15,7 @@ pub use error::PreviewError;
 pub use extractor::MetadataExtractor;
 pub use fetcher::{FetchResult, Fetcher, FetcherConfig};
 pub use logging::{log_error_card, log_preview_card, setup_logging, LogConfig, LogLevelGuard};
-pub use preview_generator::UrlPreviewGenerator;
+pub use preview_generator::{UrlPreviewGenerator, CacheStrategy};
 pub use preview_service::{PreviewService, PreviewServiceConfig, MAX_CONCURRENT_REQUESTS};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -30,7 +30,7 @@ pub struct Preview {
 
 #[async_trait]
 pub trait PreviewGenerator {
-    async fn generate_preview(&self, url: &str, use_cache:bool) -> Result<Preview, PreviewError>;
+    async fn generate_preview(&self, url: &str) -> Result<Preview, PreviewError>;
 }
 
 pub fn is_twitter_url(url: &str) -> bool {

@@ -1,9 +1,9 @@
 use std::error::Error;
-use url_preview::{PreviewGenerator, UrlPreviewGenerator};
+use url_preview::{PreviewGenerator, UrlPreviewGenerator, CacheStrategy};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let generator = UrlPreviewGenerator::new(1000);
+    let generator = UrlPreviewGenerator::new(1000, CacheStrategy::UseCache);
 
     let urls = vec![
         "https://www.rust-lang.org",
