@@ -3,6 +3,8 @@ use crate::{Preview, PreviewError};
 use scraper::{Html, Selector};
 use tracing::debug;
 
+use crate::utils;
+
 /// Metadata extractor, responsible for extracting preview information from webpage content
 #[derive(Clone)]
 pub struct MetadataExtractor;
@@ -78,6 +80,27 @@ impl MetadataExtractor {
         let favicon = self.extract_favicon(document);
         let site_name = self.extract_site_name(document);
 
+        let host = utils::pickup_host_from_url(url)?;
+
+        let image_url = if let Some(url) = image_url {
+            if !url.starts_with(&host) {
+                Some(format!("{}{}", host, url))
+            } else {
+                Some(url)
+            }
+        } else {
+            None
+        };
+        let favicon = if let Some(url) = favicon {
+            if !url.starts_with(&host) {
+                Some(format!("{}{}", host, url))
+            } else {
+                Some(url)
+            }
+        } else {
+            None
+        };
+
         Ok(Preview {
             url: url.to_string(),
             title,
@@ -127,7 +150,8 @@ impl MetadataExtractor {
     }
 
     fn extract_image(&self, document: &Html) -> Option<String> {
-        let og_image_selector = Selector::parse("meta[property='og:image']").ok()?;
+        let og_image_selector =
+            Selector::parse("meta[property='og:image'],meta[itemprop='image']").ok()?;
 
         document
             .select(&og_image_selector)

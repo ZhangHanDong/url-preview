@@ -1,6 +1,7 @@
 use crate::github_types::{is_github_url, GitHubDetailedInfo};
 use crate::{
-    is_twitter_url, Fetcher, Preview, PreviewError, PreviewGenerator, UrlPreviewGenerator,
+    is_twitter_url, CacheStrategy, Fetcher, Preview, PreviewError, PreviewGenerator,
+    UrlPreviewGenerator,
 };
 use std::sync::Arc;
 use tokio::sync::Semaphore;
@@ -44,16 +45,52 @@ impl PreviewService {
 
         let default_generator = Arc::new(UrlPreviewGenerator::new_with_fetcher(
             cache_capacity,
+            CacheStrategy::UseCache,
             Fetcher::new(),
         ));
 
         let twitter_generator = Arc::new(UrlPreviewGenerator::new_with_fetcher(
             cache_capacity,
+            CacheStrategy::UseCache,
             Fetcher::new_twitter_client(),
         ));
 
         let github_generator = Arc::new(UrlPreviewGenerator::new_with_fetcher(
             cache_capacity,
+            CacheStrategy::UseCache,
+            Fetcher::new_github_client(),
+        ));
+
+        let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_REQUESTS));
+
+        debug!("PreviewService initialized successfully");
+
+        Self {
+            default_generator,
+            twitter_generator,
+            github_generator,
+            semaphore,
+        }
+    }
+
+    pub fn with_no_cache() -> Self {
+        debug!("Initializing PreviewService with cache capacity: {}", 0);
+
+        let default_generator = Arc::new(UrlPreviewGenerator::new_with_fetcher(
+            0,
+            CacheStrategy::NoCache,
+            Fetcher::new(),
+        ));
+
+        let twitter_generator = Arc::new(UrlPreviewGenerator::new_with_fetcher(
+            0,
+            CacheStrategy::NoCache,
+            Fetcher::new_twitter_client(),
+        ));
+
+        let github_generator = Arc::new(UrlPreviewGenerator::new_with_fetcher(
+            0,
+            CacheStrategy::NoCache,
             Fetcher::new_github_client(),
         ));
 
@@ -74,11 +111,13 @@ impl PreviewService {
 
         let default_generator = Arc::new(UrlPreviewGenerator::new_with_fetcher(
             config.cache_capacity,
+            config.cache_strategy.clone(),
             config.default_fetcher.unwrap_or_default(),
         ));
 
         let twitter_generator = Arc::new(UrlPreviewGenerator::new_with_fetcher(
             config.cache_capacity,
+            config.cache_strategy.clone(),
             config
                 .twitter_fetcher
                 .unwrap_or_else(Fetcher::new_twitter_client),
@@ -86,6 +125,7 @@ impl PreviewService {
 
         let github_generator = Arc::new(UrlPreviewGenerator::new_with_fetcher(
             config.cache_capacity,
+            config.cache_strategy,
             config
                 .github_fetcher
                 .unwrap_or_else(Fetcher::new_github_client),
@@ -119,9 +159,11 @@ impl PreviewService {
 
     #[instrument(level = "debug", skip(self))]
     async fn generate_github_preview(&self, url: &str) -> Result<Preview, PreviewError> {
-        if let Some(cached) = self.github_generator.cache.get(url).await {
-            return Ok(cached);
-        }
+        if let CacheStrategy::UseCache = self.github_generator.cache_strategy {
+            if let Some(cached) = self.github_generator.cache.get(url).await {
+                return Ok(cached);
+            };
+        };
 
         let (owner, repo_name) = Self::extract_github_info(url).ok_or_else(|| {
             warn!("GitHub URL parsing failed: {}", url);
@@ -148,10 +190,12 @@ impl PreviewService {
                     ),
                 };
 
-                self.github_generator
-                    .cache
-                    .set(url.to_string(), preview.clone())
-                    .await;
+                if let CacheStrategy::UseCache = self.github_generator.cache_strategy {
+                    self.github_generator
+                        .cache
+                        .set(url.to_string(), preview.clone())
+                        .await;
+                }
 
                 Ok(preview)
             }
@@ -167,6 +211,31 @@ impl PreviewService {
 
     #[instrument(level = "debug", skip(self))]
     pub async fn generate_preview(&self, url: &str) -> Result<Preview, PreviewError> {
+        debug!("Starting preview generation for URL: {}", url);
+
+        // match &result {
+        //     Ok(preview) => {
+        //         log_preview_card(preview, url);
+        //     }
+        //     Err(e) => {
+        //         log_error_card(url, e);
+        //     }
+        // }
+
+        if is_twitter_url(url) {
+            debug!("Detected Twitter URL, using specialized handler");
+            self.twitter_generator.generate_preview(url).await
+        } else if is_github_url(url) {
+            debug!("Detected GitHub URL, using specialized handler");
+            self.generate_github_preview(url).await
+        } else {
+            debug!("Using default URL handler");
+            self.default_generator.generate_preview(url).await
+        }
+    }
+
+    #[instrument(level = "debug", skip(self))]
+    pub async fn generate_preview_no_cache(&self, url: &str) -> Result<Preview, PreviewError> {
         debug!("Starting preview generation for URL: {}", url);
 
         // match &result {
@@ -227,9 +296,18 @@ impl PreviewService {
 impl PreviewService {
     pub fn new_with_concurrency(config: PreviewServiceConfig) -> Self {
         let semaphore = Arc::new(Semaphore::new(config.max_concurrent_requests));
-        let default_generator = Arc::new(UrlPreviewGenerator::new(config.cache_capacity));
-        let twitter_generator = Arc::new(UrlPreviewGenerator::new(config.cache_capacity));
-        let github_generator = Arc::new(UrlPreviewGenerator::new(config.cache_capacity));
+        let default_generator = Arc::new(UrlPreviewGenerator::new(
+            config.cache_capacity,
+            config.cache_strategy.clone(),
+        ));
+        let twitter_generator = Arc::new(UrlPreviewGenerator::new(
+            config.cache_capacity,
+            config.cache_strategy.clone(),
+        ));
+        let github_generator = Arc::new(UrlPreviewGenerator::new(
+            config.cache_capacity,
+            config.cache_strategy,
+        ));
 
         PreviewService {
             default_generator,
@@ -254,6 +332,7 @@ impl PreviewService {
 #[derive(Default, Clone)]
 pub struct PreviewServiceConfig {
     pub cache_capacity: usize,
+    pub cache_strategy: CacheStrategy,
     pub default_fetcher: Option<Fetcher>,
     pub twitter_fetcher: Option<Fetcher>,
     pub github_fetcher: Option<Fetcher>,
@@ -261,9 +340,10 @@ pub struct PreviewServiceConfig {
 }
 
 impl PreviewServiceConfig {
-    pub fn new(cache_capacity: usize) -> Self {
+    pub fn new(cache_capacity: usize, cache_strategy: CacheStrategy) -> Self {
         Self {
             cache_capacity,
+            cache_strategy,
             default_fetcher: None,
             twitter_fetcher: None,
             github_fetcher: None,

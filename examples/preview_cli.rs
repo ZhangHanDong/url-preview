@@ -2,14 +2,14 @@ use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::error::Error;
 use tokio::time::{sleep, Duration};
-use url_preview::{PreviewGenerator, UrlPreviewGenerator};
+use url_preview::{CacheStrategy, PreviewGenerator, UrlPreviewGenerator};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     println!("{}", "URL Preview Generator Example".bold().green());
     println!("{}", "================================".green());
 
-    let generator = UrlPreviewGenerator::new(1000);
+    let generator = UrlPreviewGenerator::new(1000, CacheStrategy::UseCache);
 
     let urls = vec![
         "https://www.rust-lang.org",
