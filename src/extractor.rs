@@ -213,7 +213,6 @@ impl MetadataExtractor {
     }
 }
 
-
 // Helper function to check if a URL is absolute and format it accordingly
 fn format_url(url: Option<String>, host: &str) -> Option<String> {
     fn is_absolute_url(url: &str) -> bool {
@@ -231,5 +230,4 @@ fn format_url(url: Option<String>, host: &str) -> Option<String> {
     } else {
         None
     }
-
 }
