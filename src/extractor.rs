@@ -82,24 +82,9 @@ impl MetadataExtractor {
 
         let host = utils::pickup_host_from_url(url)?;
 
-        let image_url = if let Some(url) = image_url {
-            if !url.starts_with(&host) {
-                Some(format!("{}{}", host, url))
-            } else {
-                Some(url)
-            }
-        } else {
-            None
-        };
-        let favicon = if let Some(url) = favicon {
-            if !url.starts_with(&host) {
-                Some(format!("{}{}", host, url))
-            } else {
-                Some(url)
-            }
-        } else {
-            None
-        };
+        let image_url = format_url(image_url, &host);
+
+        let favicon = format_url(favicon, &host);
 
         Ok(Preview {
             url: url.to_string(),
@@ -226,4 +211,25 @@ impl MetadataExtractor {
             favicon: Some("https://abs.twimg.com/favicons/twitter.ico".to_string()),
         })
     }
+}
+
+
+// Helper function to check if a URL is absolute and format it accordingly
+fn format_url(url: Option<String>, host: &str) -> Option<String> {
+    fn is_absolute_url(url: &str) -> bool {
+        url.starts_with("http://") || url.starts_with("https://")
+    }
+
+    if let Some(url) = url {
+        if is_absolute_url(&url) {
+            Some(url)
+        } else if url.starts_with('/') {
+            Some(format!("{}{}", host, url))
+        } else {
+            Some(format!("{}/{}", host, url))
+        }
+    } else {
+        None
+    }
+
 }

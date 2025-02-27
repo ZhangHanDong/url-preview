@@ -11,7 +11,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "https://www.rust-lang.org",
         "https://github.com/zed-industries/zed",
         "https://news.ycombinator.com",
-        "https://www.wikipedia.org",
+        "https://en.wikipedia.org/wiki/France",
         "https://x.com/blackanger/status/1888945450650362251",
     ];
 
