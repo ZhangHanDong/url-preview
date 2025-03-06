@@ -6,9 +6,12 @@ description = "High-performance URL preview generator for messaging and social m
 license = "MIT"
 repository = "https://github.com/ZhangHanDong/url-preview"
 
+[features]
+default = ["reqwest/default"]
+
 [dependencies]
 tokio = { version = "1.28", features = ["full"] }
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json"], default-features = false }
 scraper = "0.17"
 url = "2.4"
 thiserror = "1.0"
