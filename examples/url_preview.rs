@@ -12,8 +12,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "https://github.com/zed-industries/zed",
         "https://news.ycombinator.com",
         "https://en.wikipedia.org/wiki/France",
-        "https://x.com/blackanger/status/1888945450650362251",
+        "https://x.com/dotey/status/1899175816711348735",
     ];
+
+    // https://publish.x.com/oembed?url=https://x.com/dotey/status/1899175816711348735&omit_script=1&lang=en
+
 
     info!("=== First fetch (from Network):");
     for url in urls.clone() {
