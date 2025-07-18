@@ -1,5 +1,3 @@
-#![cfg(feature = "logging")]
-
 use crate::utils::truncate_str;
 use crate::Preview;
 use std::fmt::Display;
@@ -30,7 +28,7 @@ impl Default for LogConfig {
 }
 
 fn create_separator(width: usize, ch: char) -> String {
-    std::iter::repeat(ch).take(width).collect()
+    std::iter::repeat_n(ch, width).collect()
 }
 
 pub fn log_preview_card(preview: &Preview, url: &str) {
@@ -103,7 +101,7 @@ pub fn log_error_card<E: Display + std::error::Error>(url: &str, error: &E) {
 
     let mut error_details = error.to_string();
     if let Some(source) = error.source() {
-        error_details = format!("{} (原因: {})", error_details, source);
+        error_details = format!("{error_details} (原因: {source})");
     }
 
     error!(

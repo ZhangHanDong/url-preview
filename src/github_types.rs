@@ -1,5 +1,3 @@
-#![cfg(feature = "github")]
-
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

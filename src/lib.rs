@@ -20,7 +20,7 @@
 //! async fn main() -> Result<(), PreviewError> {
 //!     let service = PreviewService::new();
 //!     let preview = service.generate_preview("https://www.rust-lang.org").await?;
-//!     
+//!
 //!     println!("Title: {:?}", preview.title);
 //!     println!("Description: {:?}", preview.description);
 //!     Ok(())

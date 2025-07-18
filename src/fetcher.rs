@@ -56,7 +56,7 @@ impl Fetcher {
             .unwrap_or_else(|e| {
                 #[cfg(feature = "logging")]
                 error!(error = %e, "Failed to create HTTP client");
-                panic!("Failed to initialize HTTP client: {}", e);
+                panic!("Failed to initialize HTTP client: {e}");
             });
         Fetcher { client }
     }
@@ -225,8 +225,7 @@ impl Fetcher {
     #[cfg_attr(feature = "logging", instrument(level = "debug", skip(self), err))]
     async fn fetch_twitter_oembed(&self, tweet_url: &str) -> Result<OEmbedResponse, PreviewError> {
         let oembed_url = format!(
-            "https://publish.twitter.com/oembed?url={}&omit_script=1&lang=en",
-            tweet_url
+            "https://publish.twitter.com/oembed?url={tweet_url}&omit_script=1&lang=en"
         );
 
         #[cfg(feature = "logging")]
@@ -240,15 +239,15 @@ impl Fetcher {
             match inner_error {
                 PreviewError::DnsError(msg) => PreviewError::ExternalServiceError {
                     service: "Twitter".to_string(),
-                    message: format!("DNS error: {}", msg),
+                    message: format!("DNS error: {msg}"),
                 },
                 PreviewError::TimeoutError(msg) => PreviewError::ExternalServiceError {
                     service: "Twitter".to_string(),
-                    message: format!("Timeout: {}", msg),
+                    message: format!("Timeout: {msg}"),
                 },
                 PreviewError::ConnectionError(msg) => PreviewError::ExternalServiceError {
                     service: "Twitter".to_string(),
-                    message: format!("Connection error: {}", msg),
+                    message: format!("Connection error: {msg}"),
                 },
                 _ => PreviewError::ExternalServiceError {
                     service: "Twitter".to_string(),
@@ -272,9 +271,9 @@ impl Fetcher {
             return Err(PreviewError::ExternalServiceError {
                 service: "Twitter".to_string(),
                 message: match status {
-                    400..=499 => format!("Client error ({}): {}", status, message),
-                    500..=599 => format!("Server error ({}): {}", status, message),
-                    _ => format!("HTTP error ({}): {}", status, message),
+                    400..=499 => format!("Client error ({status}): {message}"),
+                    500..=599 => format!("Server error ({status}): {message}"),
+                    _ => format!("HTTP error ({status}): {message}"),
                 },
             });
         }
@@ -378,7 +377,7 @@ impl Fetcher {
             debug!("Found GitHub token in environment");
             headers.insert(
                 "Authorization",
-                format!("Bearer {}", token).parse().unwrap(),
+                format!("Bearer {token}").parse().unwrap(),
             );
         }
 
@@ -397,7 +396,7 @@ impl Fetcher {
         owner: &str,
         repo: &str,
     ) -> Result<GitHubRepository, PreviewError> {
-        let url = format!("https://api.github.com/repos/{}/{}", owner, repo);
+        let url = format!("https://api.github.com/repos/{owner}/{repo}");
         #[cfg(feature = "logging")]
         debug!(url = %url, "Fetching GitHub repository information");
 
@@ -470,7 +469,7 @@ impl Fetcher {
         owner: &str,
         repo: &str,
     ) -> Result<GitHubBasicPreview, PreviewError> {
-        let url = format!("https://github.com/{}/{}", owner, repo);
+        let url = format!("https://github.com/{owner}/{repo}");
         #[cfg(feature = "logging")]
         debug!("Fetching basic preview for repository: {}/{}", owner, repo);
 
@@ -529,7 +528,7 @@ impl Fetcher {
         owner: &str,
         repo: &str,
     ) -> Result<GitHubDetailedInfo, PreviewError> {
-        let api_url = format!("https://api.github.com/repos/{}/{}", owner, repo);
+        let api_url = format!("https://api.github.com/repos/{owner}/{repo}");
         #[cfg(feature = "logging")]
         debug!("Fetching detailed info from GitHub API: {}", api_url);
 

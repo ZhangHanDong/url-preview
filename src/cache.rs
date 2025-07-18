@@ -1,4 +1,3 @@
-#![cfg(feature = "cache")]
 
 use crate::Preview;
 use dashmap::DashMap;

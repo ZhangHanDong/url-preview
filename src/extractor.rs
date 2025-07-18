@@ -205,7 +205,7 @@ impl MetadataExtractor {
 
         let time = document
             .select(&link_selector)
-            .last()
+            .next_back()
             .map(|el| el.text().collect::<String>());
 
         Some(Preview {
@@ -214,7 +214,7 @@ impl MetadataExtractor {
             description: Some(format!(
                 "{}{}",
                 tweet_text.unwrap_or_default(),
-                time.map(|t| format!(" (Posted: {})", t))
+                time.map(|t| format!(" (Posted: {t})"))
                     .unwrap_or_default()
             )),
             image_url: image_link,
@@ -234,9 +234,9 @@ fn format_url(url: Option<String>, host: &str) -> Option<String> {
         if is_absolute_url(&url) {
             Some(url)
         } else if url.starts_with('/') {
-            Some(format!("{}{}", host, url))
+            Some(format!("{host}{url}"))
         } else {
-            Some(format!("{}/{}", host, url))
+            Some(format!("{host}/{url}"))
         }
     } else {
         None

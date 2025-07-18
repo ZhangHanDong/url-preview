@@ -131,7 +131,7 @@ impl PreviewService {
         let default_generator = Arc::new(UrlPreviewGenerator::new_with_fetcher(
             config.cache_capacity,
             config.cache_strategy,
-            config.default_fetcher.unwrap_or_else(Fetcher::new),
+            config.default_fetcher.unwrap_or_default(),
         ));
 
         #[cfg(feature = "twitter")]
@@ -251,7 +251,7 @@ impl PreviewService {
             .map_err(|_| PreviewError::ConcurrencyLimitError)?;
 
         let _ = Url::parse(url)
-            .map_err(|e| PreviewError::ParseError(format!("Invalid URL format: {}", e)))?;
+            .map_err(|e| PreviewError::ParseError(format!("Invalid URL format: {e}")))?;
 
         if is_twitter_url(url) {
             #[cfg(feature = "logging")]
@@ -306,7 +306,7 @@ impl PreviewService {
             .map_err(|_| PreviewError::ConcurrencyLimitError)?;
 
         let _ = Url::parse(url)
-            .map_err(|e| PreviewError::ParseError(format!("Invalid URL format: {}", e)))?;
+            .map_err(|e| PreviewError::ParseError(format!("Invalid URL format: {e}")))?;
 
         if is_twitter_url(url) {
             #[cfg(feature = "logging")]

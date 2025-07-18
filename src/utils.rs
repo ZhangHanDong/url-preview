@@ -41,11 +41,11 @@ pub fn pickup_host_from_url(url: &str) -> Result<String, ParseError> {
 
     let port = parsed_url
         .port()
-        .map(|x| format!(":{}", x))
+        .map(|x| format!(":{x}"))
         .or_else(|| Some("".to_string()))
         .unwrap();
 
-    Ok(format!("{}://{}{}/", scheme, host, port))
+    Ok(format!("{scheme}://{host}{port}/"))
 }
 
 #[cfg(test)]
