@@ -1,3 +1,5 @@
+#![cfg(feature = "logging")]
+
 use crate::utils::truncate_str;
 use crate::Preview;
 use std::fmt::Display;

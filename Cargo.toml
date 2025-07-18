@@ -1,6 +1,6 @@
 [package]
 name = "url-preview"
-version = "0.3.2"
+version = "0.4.0"
 edition = "2021"
 description = "High-performance URL preview generator for messaging and social media applications"
 license = "MIT"
@@ -8,24 +8,29 @@ repository = "https://github.com/ZhangHanDong/url-preview"
 
 [features]
 default = ["reqwest/default"]
+cache = ["dashmap"]
+logging = ["tracing", "tracing-subscriber", "tracing-appender"]
+github = []
+twitter = []
+full = ["cache", "logging", "github", "twitter"]
 
 [dependencies]
-tokio = { version = "1.28", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.11", features = ["json"], default-features = false }
 scraper = "0.17"
-url = "2.4"
-thiserror = "1.0"
+url = "2"
+thiserror = "1"
 async-trait = "0.1"
-image = "0.24"
-lru = "0.11"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"]}
-tracing-appender = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 unicode-width = "0.1"
-dashmap = "6.1.0"
-futures = "0.3.31"
+futures = "0.3"
+
+# Optional dependencies
+dashmap = { version = "6", optional = true }
+tracing = { version = "0.1", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+tracing-appender = { version = "0.2", optional = true }
 
 [dev-dependencies]
 colored = "2.0"

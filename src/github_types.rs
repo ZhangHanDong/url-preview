@@ -1,3 +1,5 @@
+#![cfg(feature = "github")]
+
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -28,17 +30,21 @@ pub fn is_github_url(url: &str) -> bool {
 
 #[derive(Debug, Clone)]
 pub struct GitHubBasicPreview {
-    pub title: String,
+    pub title: Option<String>,
     pub description: Option<String>,
     pub image_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub struct GitHubDetailedInfo {
+    pub full_name: String,
+    pub description: String,
     pub stars_count: u32,
     pub forks_count: u32,
-    pub contributors_count: u32,
-    pub issues_count: u32,
-    pub discussions_count: u32,
-    pub primary_language: Option<String>,
+    pub open_issues_count: u32,
+    pub language: Option<String>,
+    pub default_branch: String,
+    pub topics: Vec<String>,
+    pub html_url: String,
+    pub homepage: Option<String>,
 }

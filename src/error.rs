@@ -1,4 +1,5 @@
 use thiserror::Error;
+#[cfg(feature = "logging")]
 use tracing::{error, warn};
 
 #[derive(Debug, Error)]
@@ -24,12 +25,37 @@ pub enum PreviewError {
     #[error("Request timeout: {0}")]
     TimeoutError(String),
 
+    #[error("DNS resolution failed: {0}")]
+    DnsError(String),
+
+    #[error("Connection error: {0}")]
+    ConnectionError(String),
+
+    #[error("HTTP {status}: {message}")]
+    HttpError { status: u16, message: String },
+
+    #[error("Server error (5xx): {status} - {message}")]
+    ServerError { status: u16, message: String },
+
+    #[error("Client error (4xx): {status} - {message}")]
+    ClientError { status: u16, message: String },
+
     #[error("External service error: {service} - {message}")]
     ExternalServiceError { service: String, message: String },
+
+    #[error("Parse error: {0}")]
+    ParseError(String),
+
+    #[error("Concurrency limit reached")]
+    ConcurrencyLimitError,
+
+    #[error("Resource not found: {0}")]
+    NotFound(String),
 }
 
 impl PreviewError {
     pub fn log(&self) {
+        #[cfg(feature = "logging")]
         match self {
             PreviewError::UrlParseError(e) => {
                 warn!(error = %e, "URL parsing failed");
@@ -59,6 +85,74 @@ impl PreviewError {
                     "External service error occurred"
                 );
             }
+            PreviewError::ParseError(e) => {
+                error!(error = %e, "Parse error occurred");
+            }
+            PreviewError::ConcurrencyLimitError => {
+                warn!("Concurrency limit reached");
+            }
+            PreviewError::NotFound(e) => {
+                warn!(error = %e, "Resource not found");
+            }
+            PreviewError::DnsError(e) => {
+                error!(error = %e, "DNS resolution failed");
+            }
+            PreviewError::ConnectionError(e) => {
+                error!(error = %e, "Connection failed");
+            }
+            PreviewError::HttpError { status, message } => {
+                warn!(status = %status, error = %message, "HTTP error");
+            }
+            PreviewError::ServerError { status, message } => {
+                error!(status = %status, error = %message, "Server error");
+            }
+            PreviewError::ClientError { status, message } => {
+                warn!(status = %status, error = %message, "Client error");
+            }
+        }
+        #[cfg(not(feature = "logging"))]
+        {
+            // No-op when logging is disabled
+        }
+    }
+
+    /// Convert a reqwest error into a more specific PreviewError
+    pub fn from_reqwest_error(error: reqwest::Error) -> Self {
+        if error.is_timeout() {
+            PreviewError::TimeoutError(error.to_string())
+        } else if error.is_connect() {
+            // Connection errors including DNS
+            let error_msg = error.to_string();
+            if error_msg.contains("dns")
+                || error_msg.contains("resolve")
+                || error_msg.contains("lookup")
+            {
+                PreviewError::DnsError(error_msg)
+            } else {
+                PreviewError::ConnectionError(error_msg)
+            }
+        } else if let Some(status) = error.status() {
+            let status_code = status.as_u16();
+            let message = error.to_string();
+
+            match status_code {
+                404 => PreviewError::NotFound(message),
+                400..=499 => PreviewError::ClientError {
+                    status: status_code,
+                    message,
+                },
+                500..=599 => PreviewError::ServerError {
+                    status: status_code,
+                    message,
+                },
+                _ => PreviewError::HttpError {
+                    status: status_code,
+                    message,
+                },
+            }
+        } else {
+            // Generic fetch error for other cases
+            PreviewError::FetchError(error.to_string())
         }
     }
 }

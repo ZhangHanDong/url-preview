@@ -3,7 +3,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use url_preview::{Cache, Preview, PreviewService, PreviewServiceConfig};
+#[cfg(feature = "cache")]
+use url_preview::Cache;
+use url_preview::{Preview, PreviewService, PreviewServiceConfig};
 
 const MOCK_URLS: &[&str] = &[
     "https://example1.com/page1",
@@ -24,6 +26,7 @@ fn create_mock_preview(url: &str) -> Preview {
     }
 }
 
+#[cfg(feature = "cache")]
 fn bench_cache_scenarios(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("cache_performance");
@@ -124,6 +127,7 @@ fn bench_cache_scenarios(c: &mut Criterion) {
     group.finish();
 }
 
+#[cfg(feature = "cache")]
 fn bench_preview_service_with_cache(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("preview_service_cache");
@@ -171,6 +175,16 @@ fn bench_preview_service_with_cache(c: &mut Criterion) {
     });
 
     group.finish();
+}
+
+#[cfg(not(feature = "cache"))]
+fn bench_cache_scenarios(_c: &mut Criterion) {
+    // Cache benchmarks are skipped when cache feature is not enabled
+}
+
+#[cfg(not(feature = "cache"))]
+fn bench_preview_service_with_cache(_c: &mut Criterion) {
+    // Cache benchmarks are skipped when cache feature is not enabled
 }
 
 criterion_group! {

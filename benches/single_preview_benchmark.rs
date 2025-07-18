@@ -3,7 +3,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use url_preview::{Cache, Preview, PreviewService};
+#[cfg(feature = "cache")]
+use url_preview::Cache;
+use url_preview::{Preview, PreviewService};
 
 const MOCK_HTML: &str = r#"<!DOCTYPE html>
 <html>
@@ -60,6 +62,7 @@ fn bench_single_preview(c: &mut Criterion) {
     group.finish();
 }
 
+#[cfg(feature = "cache")]
 fn bench_cache_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("cache_operations");
@@ -107,6 +110,11 @@ fn generate_test_preview() -> Preview {
         favicon: Some("https://example.com/favicon.ico".to_string()),
         site_name: Some("Example Site".to_string()),
     }
+}
+
+#[cfg(not(feature = "cache"))]
+fn bench_cache_operations(_c: &mut Criterion) {
+    // Cache benchmarks are skipped when cache feature is not enabled
 }
 
 criterion_group!(

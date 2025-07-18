@@ -1,6 +1,7 @@
 use super::is_twitter_url;
 use crate::{Preview, PreviewError};
 use scraper::{Html, Selector};
+#[cfg(feature = "logging")]
 use tracing::debug;
 
 use crate::utils;
@@ -41,10 +42,17 @@ impl MetadataExtractor {
         ];
 
         // Print matching results for all selectors
-        for (selector_str, desc) in selectors {
+        for (selector_str, _desc) in selectors {
             if let Ok(selector) = Selector::parse(selector_str) {
-                let count = document.select(&selector).count();
-                debug!("{}: Found {} matches", desc, count);
+                #[cfg(feature = "logging")]
+                {
+                    let count = document.select(&selector).count();
+                    debug!("{}: Found {} matches", _desc, count);
+                }
+                #[cfg(not(feature = "logging"))]
+                {
+                    let _count = document.select(&selector).count();
+                }
             }
         }
 
@@ -53,10 +61,13 @@ impl MetadataExtractor {
         let og_description = self.extract_description(document);
         let og_image = self.extract_image(document);
 
-        debug!("Basic metadata extraction results:");
-        debug!("Title: {:?}", og_title);
-        debug!("Description: {:?}", og_description);
-        debug!("Image: {:?}", og_image);
+        #[cfg(feature = "logging")]
+        {
+            debug!("Basic metadata extraction results:");
+            debug!("Title: {:?}", og_title);
+            debug!("Description: {:?}", og_description);
+            debug!("Image: {:?}", og_image);
+        }
 
         // Return basic info even if specific tweet elements not found
         Some(Preview {

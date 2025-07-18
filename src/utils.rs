@@ -8,6 +8,7 @@ use url::{ParseError, Url};
 /// 1. Correctly handle Unicode characters (including Chinese, emoji, etc.)
 /// 2. Add ellipsis when maximum length is reached
 /// 3. Ensure the output string's display width does not exceed the specified length
+#[allow(dead_code)]
 pub fn truncate_str(s: &str, max_width: usize) -> String {
     use unicode_width::UnicodeWidthStr;
 
@@ -35,7 +36,6 @@ pub fn truncate_str(s: &str, max_width: usize) -> String {
 
 pub fn pickup_host_from_url(url: &str) -> Result<String, ParseError> {
     let parsed_url = Url::parse(url)?;
-    parsed_url.host_str().map(String::from);
     let scheme = parsed_url.scheme();
     let host = parsed_url.host_str().ok_or(url::ParseError::EmptyHost)?;
 

@@ -1,12 +1,33 @@
+use std::error::Error;
+#[cfg(feature = "logging")]
+use std::path::PathBuf;
 use std::time::Instant;
-use std::{error::Error, path::PathBuf};
 use tokio::time::timeout;
 use tokio::time::Duration;
+#[cfg(feature = "logging")]
 use tracing::{info, warn};
-use url_preview::{
-    setup_logging, FetchResult, Fetcher, FetcherConfig, LogConfig, PreviewService,
-    PreviewServiceConfig,
-};
+#[cfg(feature = "logging")]
+use url_preview::{setup_logging, LogConfig};
+use url_preview::{FetchResult, Fetcher, PreviewService, PreviewServiceConfig};
+
+// Macros to handle logging with and without the feature
+macro_rules! log_info {
+    ($($arg:tt)*) => {{
+        #[cfg(feature = "logging")]
+        info!($($arg)*);
+        #[cfg(not(feature = "logging"))]
+        println!($($arg)*);
+    }};
+}
+
+macro_rules! log_warn {
+    ($($arg:tt)*) => {{
+        #[cfg(feature = "logging")]
+        warn!($($arg)*);
+        #[cfg(not(feature = "logging"))]
+        eprintln!("WARN: {}", format!($($arg)*));
+    }};
+}
 
 const BASE_URLS: &[&str] = &[
     "https://www.rust-lang.org",
@@ -20,25 +41,26 @@ const BASE_URLS: &[&str] = &[
 
 struct UrlWithDelay {
     url: String,
+    #[allow(dead_code)]
     delay: u64,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    setup_logging(LogConfig {
-        log_dir: PathBuf::from("logs"),
-        log_level: "info".into(),
-        console_output: true,
-        file_output: true,
-    });
+    #[cfg(feature = "logging")]
+    {
+        setup_logging(LogConfig {
+            log_dir: PathBuf::from("logs"),
+            log_level: "info".into(),
+            console_output: true,
+            file_output: true,
+        });
+    }
 
-    info!("Starting batch and concurrent preview example");
+    log_info!("Starting batch and concurrent preview example");
 
-    let fetcher_config = FetcherConfig {
-        timeout: Duration::from_secs(30),
-        user_agent: "batch-test/1.0".into(),
-        ..Default::default()
-    };
+    let timeout = Duration::from_secs(30);
+    let user_agent = "batch-test/1.0";
 
     let test_urls: Vec<UrlWithDelay> = BASE_URLS
         .iter()
@@ -49,22 +71,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect();
 
-    let service_config = PreviewServiceConfig {
-        cache_capacity: 1000,
-        max_concurrent_requests: 3,
-        default_fetcher: Some(Fetcher::new_with_config(fetcher_config)),
-        ..Default::default()
-    };
+    let service_config = PreviewServiceConfig::new(1000)
+        .with_max_concurrent_requests(3)
+        .with_default_fetcher(Fetcher::new_with_custom_config(timeout, user_agent));
 
     let service = PreviewService::new_with_config(service_config);
 
-    info!("\n=== Testing batch processing ===");
+    log_info!("\n=== Testing batch processing ===");
     test_improved_batch_processing(&test_urls, &service).await?;
 
-    info!("\n=== Testing concurrency control ===");
+    log_info!("\n=== Testing concurrency control ===");
     test_improved_concurrent_processing(&test_urls, &service).await?;
 
-    info!("\n=== Performance comparison ===");
+    log_info!("\n=== Performance comparison ===");
     compare_processing_methods(&test_urls).await?;
 
     Ok(())
@@ -74,7 +93,7 @@ async fn test_improved_batch_processing(
     urls: &[UrlWithDelay],
     service: &PreviewService,
 ) -> Result<(), Box<dyn Error>> {
-    info!("Starting batch processing with {} URLs", urls.len());
+    log_info!("Starting batch processing with {} URLs", urls.len());
     let start = Instant::now();
 
     let url_strings: Vec<&str> = urls.iter().map(|u| u.url.as_str()).collect();
@@ -87,21 +106,22 @@ async fn test_improved_batch_processing(
     {
         Ok(results) => {
             let duration = start.elapsed();
-            info!("Batch fetch completed in {:?}", duration);
+            log_info!("Batch fetch completed in {:?}", duration);
 
             for (idx, result) in results.iter().enumerate() {
                 match result {
                     FetchResult::Html(content) => {
-                        info!(
+                        log_info!(
                             "URL: {} - Successfully fetched HTML content ({} bytes)",
                             urls[idx].url,
                             content.len()
                         );
                     }
                     FetchResult::OEmbed(oembed) => {
-                        info!(
+                        log_info!(
                             "URL: {} - Successfully fetched oEmbed content from {}",
-                            urls[idx].url, oembed.provider_name
+                            urls[idx].url,
+                            oembed.provider_name
                         );
                     }
                 }
@@ -116,21 +136,21 @@ async fn test_improved_batch_processing(
                 .filter(|r| matches!(r, FetchResult::OEmbed(_)))
                 .count();
 
-            info!("\nBatch Processing Summary:");
-            info!("Total URLs processed: {}", results.len());
-            info!("HTML responses: {}", html_count);
-            info!("oEmbed responses: {}", oembed_count);
-            info!(
+            log_info!("\nBatch Processing Summary:");
+            log_info!("Total URLs processed: {}", results.len());
+            log_info!("HTML responses: {}", html_count);
+            log_info!("oEmbed responses: {}", oembed_count);
+            log_info!(
                 "Average time per URL: {:?}",
                 duration / results.len() as u32
             );
         }
         Err(e) => {
-            warn!("Batch processing failed: {}", e);
+            log_warn!("Batch processing failed: {}", e);
             for url_data in urls {
                 match service.default_generator.fetcher.fetch(&url_data.url).await {
-                    Ok(_) => info!("Individual fetch succeeded for {}", url_data.url),
-                    Err(e) => warn!("Individual fetch failed for {}: {}", url_data.url, e),
+                    Ok(_) => log_info!("Individual fetch succeeded for {}", url_data.url),
+                    Err(e) => log_warn!("Individual fetch failed for {}: {}", url_data.url, e),
                 }
             }
         }
@@ -143,7 +163,7 @@ async fn test_improved_concurrent_processing(
     urls: &[UrlWithDelay],
     service: &PreviewService,
 ) -> Result<(), Box<dyn Error>> {
-    info!("Starting concurrent processing with controlled rate limiting");
+    log_info!("Starting concurrent processing with controlled rate limiting");
     let start = Instant::now();
 
     let mut handles = vec![];
@@ -154,11 +174,11 @@ async fn test_improved_concurrent_processing(
         let handle = tokio::spawn(async move {
             match service.generate_preview_with_concurrency(&url).await {
                 Ok(preview) => {
-                    info!("Concurrent: Successfully processed {}", url);
+                    log_info!("Concurrent: Successfully processed {}", url);
                     Ok(preview)
                 }
                 Err(e) => {
-                    warn!("Concurrent: Failed to process {}: {}", url, e);
+                    log_warn!("Concurrent: Failed to process {}: {}", url, e);
                     Err(e)
                 }
             }
@@ -174,7 +194,7 @@ async fn test_improved_concurrent_processing(
         .filter(|r| r.as_ref().map_or(false, |r| r.is_ok()))
         .count();
 
-    info!(
+    log_info!(
         "Concurrent processing completed in {:?}. Success: {}/{}",
         duration,
         success_count,
@@ -187,20 +207,13 @@ async fn test_improved_concurrent_processing(
 async fn compare_processing_methods(urls: &[UrlWithDelay]) -> Result<(), Box<dyn Error>> {
     let timeout_duration = Duration::from_secs(20);
 
-    let fetcher_config = FetcherConfig {
-        timeout: timeout_duration,
-        user_agent: "batch-test/1.0".into(),
-        ..Default::default()
-    };
-    let fetcher = Fetcher::new_with_config(fetcher_config);
+    let fetcher = Fetcher::new_with_custom_config(timeout_duration, "batch-test/1.0");
 
     let url_strings: Vec<&str> = urls.iter().map(|u| u.url.as_str()).collect();
 
-    let regular_service = PreviewService::new_with_config(PreviewServiceConfig {
-        cache_capacity: 1000,
-        default_fetcher: Some(fetcher.clone()),
-        ..Default::default()
-    });
+    let regular_service = PreviewService::new_with_config(
+        PreviewServiceConfig::new(1000).with_default_fetcher(fetcher.clone()),
+    );
 
     let start = Instant::now();
     for url_data in urls {
@@ -212,33 +225,30 @@ async fn compare_processing_methods(urls: &[UrlWithDelay]) -> Result<(), Box<dyn
         {
             Ok(result) => {
                 if let Err(e) = result {
-                    warn!("Failed to process {}: {}", url_data.url, e);
+                    log_warn!("Failed to process {}: {}", url_data.url, e);
                 }
             }
-            Err(_) => warn!("Request timeout for {}", url_data.url),
+            Err(_) => log_warn!("Request timeout for {}", url_data.url),
         }
     }
     let regular_duration = start.elapsed();
-    info!("Regular sequential processing: {:?}", regular_duration);
+    log_info!("Regular sequential processing: {:?}", regular_duration);
 
     let start = Instant::now();
     match timeout(timeout_duration, fetcher.fetch_batch(url_strings.clone())).await {
         Ok(result) => {
             if let Ok(responses) = result {
-                info!("Successfully processed {} URLs in batch", responses.len());
+                log_info!("Successfully processed {} URLs in batch", responses.len());
             }
         }
-        Err(_) => warn!("Batch processing timeout"),
+        Err(_) => log_warn!("Batch processing timeout"),
     }
     let batch_duration = start.elapsed();
-    info!("Batch processing: {:?}", batch_duration);
+    log_info!("Batch processing: {:?}", batch_duration);
 
-    let service_config = PreviewServiceConfig {
-        cache_capacity: 1000,
-        max_concurrent_requests: 3,
-        default_fetcher: Some(fetcher.clone()),
-        ..Default::default()
-    };
+    let service_config = PreviewServiceConfig::new(1000)
+        .with_max_concurrent_requests(3)
+        .with_default_fetcher(fetcher.clone());
 
     let concurrent_service = PreviewService::new_with_config(service_config);
     let start = Instant::now();
@@ -266,7 +276,7 @@ async fn compare_processing_methods(urls: &[UrlWithDelay]) -> Result<(), Box<dyn
         .filter(|&&ref r| r.as_ref().map_or(false, |r| r.is_ok()))
         .count();
 
-    info!(
+    log_info!(
         "Concurrent processing: {:?} (Success: {}/{})",
         concurrent_duration,
         success_count,

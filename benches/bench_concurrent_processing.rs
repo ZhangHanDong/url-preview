@@ -1,12 +1,8 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use futures::future::join_all;
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use url_preview::{
-    FetchResult, Fetcher, FetcherConfig, Preview, PreviewError, PreviewService,
-    PreviewServiceConfig,
-};
+use url_preview::{FetchResult, Preview, PreviewError};
 
 // Mock data for consistent benchmarking
 const MOCK_HTML: &str = r#"
