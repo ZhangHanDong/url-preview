@@ -1,6 +1,6 @@
 //! # url-preview
 //!
-//! A high-performance Rust library for generating rich URL previews with specialized support 
+//! A high-performance Rust library for generating rich URL previews with specialized support
 //! for Twitter/X and GitHub.
 //!
 //! ## Features
