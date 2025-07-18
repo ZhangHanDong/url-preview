@@ -1,6 +1,6 @@
 [package]
 name = "url-preview"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 description = "High-performance URL preview generator for messaging and social media applications"
 license = "MIT"
@@ -29,7 +29,9 @@ futures = "0.3"
 # Optional dependencies
 dashmap = { version = "6", optional = true }
 tracing = { version = "0.1", optional = true }
-tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+], optional = true }
 tracing-appender = { version = "0.2", optional = true }
 
 [dev-dependencies]
