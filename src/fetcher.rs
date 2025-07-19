@@ -224,9 +224,8 @@ impl Fetcher {
     #[cfg(feature = "twitter")]
     #[cfg_attr(feature = "logging", instrument(level = "debug", skip(self), err))]
     async fn fetch_twitter_oembed(&self, tweet_url: &str) -> Result<OEmbedResponse, PreviewError> {
-        let oembed_url = format!(
-            "https://publish.twitter.com/oembed?url={tweet_url}&omit_script=1&lang=en"
-        );
+        let oembed_url =
+            format!("https://publish.twitter.com/oembed?url={tweet_url}&omit_script=1&lang=en");
 
         #[cfg(feature = "logging")]
         debug!(tweet_url = %tweet_url, "Fetching Twitter oEmbed data");
@@ -375,10 +374,7 @@ impl Fetcher {
         if let Ok(token) = std::env::var("GITHUB_TOKEN") {
             #[cfg(feature = "logging")]
             debug!("Found GitHub token in environment");
-            headers.insert(
-                "Authorization",
-                format!("Bearer {token}").parse().unwrap(),
-            );
+            headers.insert("Authorization", format!("Bearer {token}").parse().unwrap());
         }
 
         let client = Client::builder()

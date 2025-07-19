@@ -214,8 +214,7 @@ impl MetadataExtractor {
             description: Some(format!(
                 "{}{}",
                 tweet_text.unwrap_or_default(),
-                time.map(|t| format!(" (Posted: {t})"))
-                    .unwrap_or_default()
+                time.map(|t| format!(" (Posted: {t})")).unwrap_or_default()
             )),
             image_url: image_link,
             site_name: Some("X (formerly Twitter)".to_string()),
