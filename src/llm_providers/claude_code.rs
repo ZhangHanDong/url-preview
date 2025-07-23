@@ -3,7 +3,7 @@
 //! This module provides integration with the Claude Code CLI through the rust-claude-code-api
 
 use super::*;
-use cc_sdk::{query, ClaudeCodeOptions, Message, ContentBlock, Result as ClaudeResult};
+use cc_sdk::{query, ClaudeCodeOptions, Message, ContentBlock};
 use futures::StreamExt;
 
 /// Claude Code SDK provider implementation
@@ -20,20 +20,20 @@ impl ClaudeCodeProvider {
             system_prompt: "You are an expert at extracting structured data from web content. \
                            Always respond with valid JSON that matches the requested schema."
                 .to_string(),
-            model: "claude-3-opus-20240229".to_string(),
+            model: "sonnet".to_string(),
             max_thinking_tokens: 5000,
         }
     }
     
-    /// Use Claude 3 Sonnet (faster and cheaper)
+    /// Use Claude Sonnet (balanced performance)
     pub fn with_sonnet(mut self) -> Self {
-        self.model = "claude-3-sonnet-20240229".to_string();
+        self.model = "sonnet".to_string();
         self
     }
     
-    /// Use Claude 3 Haiku (fastest and cheapest)
+    /// Use Claude Haiku (fastest and cheapest)
     pub fn with_haiku(mut self) -> Self {
-        self.model = "claude-3-haiku-20240307".to_string();
+        self.model = "haiku".to_string();
         self
     }
     

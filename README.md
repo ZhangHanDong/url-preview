@@ -463,8 +463,10 @@ Extract structured data from web pages using Large Language Models:
 
 #### Supported LLM Providers
 
+##### 1. API-based Providers
+
 ```rust
-use url_preview::{LLMConfig, OpenAIProvider, AnthropicProvider, MockProvider};
+use url_preview::{LLMConfig, OpenAIProvider, AnthropicProvider};
 
 // OpenAI (requires OPENAI_API_KEY)
 let provider = LLMConfig::openai_from_env()?;
@@ -472,14 +474,64 @@ let provider = LLMConfig::openai_from_env()?;
 // Anthropic (requires ANTHROPIC_API_KEY) 
 let provider = LLMConfig::anthropic_from_env()?;
 
-// claude-code-api (no API key needed)
-let provider = LLMConfig::claude_code_from_env()?;
-
 // Local models via Ollama (requires LOCAL_LLM_ENDPOINT)
 let provider = LLMConfig::local_from_env()?;
+```
+
+##### 2. Claude Integration Options
+
+**Option A: cc-sdk (Direct CLI Integration)**
+```rust
+#[cfg(feature = "claude-code")]
+{
+    use url_preview::ClaudeCodeProvider;
+    use std::sync::Arc;
+    
+    // Direct Claude CLI integration - no API key needed
+    // Requires: npm install -g @anthropic-ai/claude-cli && claude auth login
+    let provider = Arc::new(
+        ClaudeCodeProvider::new()
+            .with_haiku()  // Use model aliases: "haiku", "sonnet", "opus"
+    );
+}
+```
+
+**Option B: claude-code-api (HTTP Service)**
+```rust
+// HTTP API service (requires claude-code-api server running)
+// Server provides OpenAI-compatible interface
+let provider = LLMConfig::claude_code_from_env()?;
+
+// Or configure manually:
+use url_preview::OpenAIProvider;
+use async_openai::config::OpenAIConfig;
+
+let openai_config = OpenAIConfig::new()
+    .with_api_base("http://localhost:8080/v1")
+    .with_api_key("not-needed");
+let provider = Arc::new(
+    OpenAIProvider::from_config(openai_config, "claude-3-5-haiku-20241022".to_string())
+);
+```
+
+**Claude Integration Comparison:**
+
+| Feature | cc-sdk (Direct CLI) | claude-code-api (HTTP) |
+|---------|---------------------|------------------------|
+| Setup | `npm install -g @anthropic-ai/claude-cli` | Run API server |
+| Auth | `claude auth login` | Uses Claude CLI auth |
+| Performance | Faster (direct) | Slightly slower (HTTP) |
+| Feature Flag | `claude-code` | `llm` |
+| Use Case | Local development | Service deployment |
+
+##### 3. Testing Provider
+
+```rust
+use url_preview::MockProvider;
+use std::sync::Arc;
 
 // Mock provider for testing
-let provider = MockProvider::new();
+let provider = Arc::new(MockProvider::new());
 ```
 
 #### Content Processing Options
@@ -506,6 +558,13 @@ Check the `examples/` directory for comprehensive examples:
 - `security_validation.rs` - Security features demonstration
 - `content_limits.rs` - Content restriction examples
 - `secure_preview_cli.rs` - CLI with full security options
+
+**LLM Integration:**
+- `cc_sdk_simple_test.rs` - Direct Claude CLI integration via cc-sdk
+- `cc_sdk_working_test.rs` - Complete cc-sdk examples with structured data
+- `claude_integration_comparison.rs` - Side-by-side comparison of cc-sdk vs claude-code-api
+- `comprehensive_llm_test.rs` - All LLM providers demonstration
+- `llm_extraction.rs` - Basic LLM data extraction
 
 **Platform-specific:**
 - `github_preview.rs` - GitHub-specific features
