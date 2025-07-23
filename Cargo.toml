@@ -45,7 +45,7 @@ base64 = { version = "0.21", optional = true }
 # LLM dependencies
 schemars = { version = "0.8", optional = true }
 async-openai = { version = "0.23", optional = true }
-cc-sdk = { path = "../rust-claude-code-api/claude-code-sdk-rs", optional = true }
+cc-sdk = { version = "0.1", optional = true }
 
 [dev-dependencies]
 colored = "2.0"

@@ -258,15 +258,15 @@ dependencies = [
 [[package]]
 name = "cc-sdk"
 version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3b97e9f96d6e8e1852c5fc681b324e73b51f19a63bf58aa9b3a6590b24a8206"
 dependencies = [
  "async-stream",
  "async-trait",
  "bytes",
- "crossbeam-channel",
  "dirs",
  "futures",
  "pin-project-lite",
- "rand 0.8.5",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
