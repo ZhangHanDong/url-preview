@@ -4,6 +4,10 @@ use crate::{
     is_twitter_url, CacheStrategy, Fetcher, Preview, PreviewError, PreviewGenerator,
     UrlPreviewGenerator,
 };
+#[cfg(feature = "browser")]
+use crate::browser_fetcher::BrowserPreviewService;
+#[cfg(feature = "browser")]
+use crate::mcp_client::{McpConfig, BrowserUsagePolicy};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 #[cfg(all(feature = "logging", feature = "github"))]
@@ -21,6 +25,8 @@ pub struct PreviewService {
     pub twitter_generator: Arc<UrlPreviewGenerator>,
     #[cfg(feature = "github")]
     pub github_generator: Arc<UrlPreviewGenerator>,
+    #[cfg(feature = "browser")]
+    pub browser_service: Option<Arc<BrowserPreviewService>>,
     // Max Concurrent Requests
     semaphore: Arc<Semaphore>,
 }
@@ -81,6 +87,8 @@ impl PreviewService {
             twitter_generator,
             #[cfg(feature = "github")]
             github_generator,
+            #[cfg(feature = "browser")]
+            browser_service: None,
             semaphore,
         }
     }
@@ -120,6 +128,8 @@ impl PreviewService {
             twitter_generator,
             #[cfg(feature = "github")]
             github_generator,
+            #[cfg(feature = "browser")]
+            browser_service: None,
             semaphore,
         }
     }
@@ -153,6 +163,16 @@ impl PreviewService {
         ));
 
         let semaphore = Arc::new(Semaphore::new(config.max_concurrent_requests));
+        
+        #[cfg(feature = "browser")]
+        let browser_service = if let Some(mcp_config) = config.mcp_config {
+            Some(Arc::new(BrowserPreviewService::new(
+                mcp_config,
+                config.browser_usage_policy,
+            )))
+        } else {
+            None
+        };
 
         #[cfg(feature = "logging")]
         debug!("PreviewService initialized with custom configuration");
@@ -163,6 +183,8 @@ impl PreviewService {
             twitter_generator,
             #[cfg(feature = "github")]
             github_generator,
+            #[cfg(feature = "browser")]
+            browser_service,
             semaphore,
         }
     }
@@ -252,6 +274,23 @@ impl PreviewService {
 
         let _ = Url::parse(url)
             .map_err(|e| PreviewError::ParseError(format!("Invalid URL format: {e}")))?;
+        
+        // Try browser service first if available
+        #[cfg(feature = "browser")]
+        if let Some(browser_service) = &self.browser_service {
+            if browser_service.should_use_browser(url) {
+                #[cfg(feature = "logging")]
+                debug!("Using browser service for URL: {}", url);
+                
+                match browser_service.generate_preview(url).await {
+                    Ok(preview) => return Ok(preview),
+                    Err(_e) => {
+                        #[cfg(feature = "logging")]
+                        debug!("Browser service failed, falling back: {}", _e);
+                    }
+                }
+            }
+        }
 
         if is_twitter_url(url) {
             #[cfg(feature = "logging")]
@@ -398,6 +437,8 @@ impl PreviewService {
             twitter_generator,
             #[cfg(feature = "github")]
             github_generator,
+            #[cfg(feature = "browser")]
+            browser_service: None,
             semaphore: Arc::new(Semaphore::new(10)),
         }
     }
@@ -422,6 +463,10 @@ pub struct PreviewServiceConfig {
     pub twitter_fetcher: Option<Fetcher>,
     #[cfg(feature = "github")]
     pub github_fetcher: Option<Fetcher>,
+    #[cfg(feature = "browser")]
+    pub mcp_config: Option<McpConfig>,
+    #[cfg(feature = "browser")]
+    pub browser_usage_policy: BrowserUsagePolicy,
 }
 
 impl PreviewServiceConfig {
@@ -435,6 +480,10 @@ impl PreviewServiceConfig {
             twitter_fetcher: None,
             #[cfg(feature = "github")]
             github_fetcher: None,
+            #[cfg(feature = "browser")]
+            mcp_config: None,
+            #[cfg(feature = "browser")]
+            browser_usage_policy: BrowserUsagePolicy::Auto,
         }
     }
 
@@ -462,6 +511,18 @@ impl PreviewServiceConfig {
 
     pub fn with_cache_strategy(mut self, cache_strategy: CacheStrategy) -> Self {
         self.cache_strategy = cache_strategy;
+        self
+    }
+    
+    #[cfg(feature = "browser")]
+    pub fn with_mcp_config(mut self, mcp_config: McpConfig) -> Self {
+        self.mcp_config = Some(mcp_config);
+        self
+    }
+    
+    #[cfg(feature = "browser")]
+    pub fn with_browser_usage_policy(mut self, policy: BrowserUsagePolicy) -> Self {
+        self.browser_usage_policy = policy;
         self
     }
 }

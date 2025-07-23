@@ -1,6 +1,6 @@
 [package]
 name = "url-preview"
-version = "0.4.1"
+version = "0.6.0"
 edition = "2021"
 description = "High-performance URL preview generator for messaging and social media applications"
 license = "MIT"
@@ -12,7 +12,10 @@ cache = ["dashmap"]
 logging = ["tracing", "tracing-subscriber", "tracing-appender"]
 github = []
 twitter = []
-full = ["cache", "logging", "github", "twitter"]
+browser = ["jsonrpc-core", "jsonrpc-stdio-server", "base64"]
+llm = ["schemars", "async-openai"]
+claude-code = ["llm", "cc-sdk"]
+full = ["cache", "logging", "github", "twitter", "browser", "llm"]
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
@@ -34,12 +37,23 @@ tracing-subscriber = { version = "0.3", features = [
 ], optional = true }
 tracing-appender = { version = "0.2", optional = true }
 
+# Browser/MCP dependencies
+jsonrpc-core = { version = "18", optional = true }
+jsonrpc-stdio-server = { version = "18", optional = true }
+base64 = { version = "0.21", optional = true }
+
+# LLM dependencies
+schemars = { version = "0.8", optional = true }
+async-openai = { version = "0.23", optional = true }
+cc-sdk = { path = "../rust-claude-code-api/claude-code-sdk-rs", optional = true }
+
 [dev-dependencies]
 colored = "2.0"
 indicatif = "0.17"
 tokio = { version = "1.28", features = ["full", "test-util"] }
 criterion = { version = "0.5", features = ["async_tokio"] }
 futures = "0.3.31"
+clap = "4.0"
 
 [[bench]]
 name = "single_preview_benchmark"

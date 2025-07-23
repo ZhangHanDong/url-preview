@@ -28,12 +28,27 @@ async fn test_github_file_not_found() {
         .generate_preview("https://github.com/rust-lang/rust/blob/master/nonexistent-file.rs")
         .await;
 
-    // This should return an error because the full URL (including the file path) returns 404
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        PreviewError::NotFound(_) => {}
-        PreviewError::FetchError(_) => {} // Also acceptable
-        _ => panic!("Expected NotFound or FetchError"),
+    // When the github feature is enabled, this URL is treated as a repository URL
+    // and will generate a preview for the repository (rust-lang/rust), not the specific file
+    #[cfg(feature = "github")]
+    {
+        // With github feature, this should succeed as it generates a repo preview
+        assert!(result.is_ok());
+        if let Ok(preview) = result {
+            assert!(preview.title.is_some());
+            assert!(preview.url.contains("github.com/rust-lang/rust"));
+        }
+    }
+
+    #[cfg(not(feature = "github"))]
+    {
+        // Without github feature, this should fail as the specific file URL returns 404
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            PreviewError::NotFound(_) => {}
+            PreviewError::FetchError(_) => {} // Also acceptable
+            _ => panic!("Expected NotFound or FetchError"),
+        }
     }
 }
 

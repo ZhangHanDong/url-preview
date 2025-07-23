@@ -1,11 +1,14 @@
 use super::is_twitter_url;
 #[cfg(feature = "github")]
 use crate::github_types::{GitHubBasicPreview, GitHubDetailedInfo, GitHubRepository};
-use crate::PreviewError;
-use reqwest::{header::HeaderMap, Client};
+use crate::{ContentLimits, PreviewError, UrlValidationConfig, UrlValidator};
+#[cfg(any(feature = "twitter", feature = "github"))]
+use reqwest::header::HeaderMap;
+use reqwest::{Client, Response};
 use scraper::{Html, Selector};
 use serde::Deserialize;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+use tokio::time::timeout;
 #[cfg(feature = "logging")]
 use tracing::{debug, error, instrument, warn};
 
@@ -23,12 +26,33 @@ pub struct OEmbedResponse {
 #[derive(Clone)]
 pub struct Fetcher {
     client: Client,
+    url_validator: UrlValidator,
+    content_limits: ContentLimits,
 }
 
 #[derive(Debug, Clone)]
 pub enum FetchResult {
     Html(String),
     OEmbed(OEmbedResponse),
+}
+
+#[derive(Debug, Clone)]
+pub struct FetcherConfig {
+    pub timeout: Duration,
+    pub user_agent: String,
+    pub url_validation: UrlValidationConfig,
+    pub content_limits: ContentLimits,
+}
+
+impl Default for FetcherConfig {
+    fn default() -> Self {
+        Self {
+            timeout: Duration::from_secs(10),
+            user_agent: "url_preview/0.1.0".to_string(),
+            url_validation: UrlValidationConfig::default(),
+            content_limits: ContentLimits::default(),
+        }
+    }
 }
 
 impl Default for Fetcher {
@@ -39,18 +63,13 @@ impl Default for Fetcher {
 
 impl Fetcher {
     pub fn new() -> Self {
-        let user_agent = "url_preview/0.1.0";
-        let timeout = Duration::from_secs(10);
-        #[cfg(feature = "logging")]
-        debug!("Fetcher initialized with default configuration");
-
-        Self::new_with_custom_config(timeout, user_agent)
+        Self::with_config(FetcherConfig::default())
     }
 
-    pub fn new_with_custom_config(timeout: Duration, user_agent: &str) -> Self {
+    pub fn with_config(config: FetcherConfig) -> Self {
         let client = Client::builder()
-            .timeout(timeout)
-            .user_agent(user_agent)
+            .timeout(config.timeout)
+            .user_agent(&config.user_agent)
             .pool_max_idle_per_host(10)
             .build()
             .unwrap_or_else(|e| {
@@ -58,11 +77,32 @@ impl Fetcher {
                 error!(error = %e, "Failed to create HTTP client");
                 panic!("Failed to initialize HTTP client: {e}");
             });
-        Fetcher { client }
+
+        #[cfg(feature = "logging")]
+        debug!("Fetcher initialized with custom configuration");
+
+        Fetcher {
+            client,
+            url_validator: UrlValidator::new(config.url_validation),
+            content_limits: config.content_limits,
+        }
+    }
+
+    pub fn new_with_custom_config(timeout: Duration, user_agent: &str) -> Self {
+        let config = FetcherConfig {
+            timeout,
+            user_agent: user_agent.to_string(),
+            ..Default::default()
+        };
+        Self::with_config(config)
     }
 
     pub fn with_client(client: Client) -> Self {
-        Self { client }
+        Self {
+            client,
+            url_validator: UrlValidator::with_default_config(),
+            content_limits: ContentLimits::default(),
+        }
     }
 
     pub async fn fetch_batch(&self, urls: Vec<&str>) -> Result<Vec<FetchResult>, PreviewError> {
@@ -164,21 +204,25 @@ impl Fetcher {
 
     #[cfg_attr(feature = "logging", instrument(level = "debug", skip(self), err))]
     pub async fn fetch(&self, url: &str) -> Result<FetchResult, PreviewError> {
-        #[cfg(feature = "logging")]
-        debug!(url = %url, "Starting fetch request");
+        // Validate URL first
+        let validated_url = self.url_validator.validate(url)?;
+        let url_str = validated_url.as_str();
 
-        if is_twitter_url(url) {
+        #[cfg(feature = "logging")]
+        debug!(url = %url_str, "Starting fetch request after validation");
+
+        if is_twitter_url(url_str) {
             #[cfg(feature = "logging")]
             debug!(url = %url, "Detected Twitter URL, using oEmbed API");
             #[cfg(feature = "twitter")]
             {
-                let oembed = self.fetch_twitter_oembed(url).await?;
+                let oembed = self.fetch_twitter_oembed(url_str).await?;
                 Ok(FetchResult::OEmbed(oembed))
             }
             #[cfg(not(feature = "twitter"))]
             {
                 // Fall back to regular HTML fetching
-                self.fetch_html(url).await.map(FetchResult::Html)
+                self.fetch_html(url_str).await.map(FetchResult::Html)
             }
         } else {
             #[cfg(feature = "logging")]
@@ -188,11 +232,25 @@ impl Fetcher {
     }
 
     async fn fetch_html(&self, url: &str) -> Result<String, PreviewError> {
-        let response = self.client.get(url).send().await.map_err(|e| {
-            #[cfg(feature = "logging")]
-            error!(error = %e, url = %url, "Failed to send request");
-            PreviewError::from_reqwest_error(e)
-        })?;
+        self.fetch_html_with_limits(url).await
+    }
+
+    async fn fetch_html_with_limits(&self, url: &str) -> Result<String, PreviewError> {
+        let start_time = Instant::now();
+        let download_timeout = Duration::from_secs(self.content_limits.max_download_time);
+
+        // Send request with timeout
+        let response = timeout(download_timeout, self.client.get(url).send())
+            .await
+            .map_err(|_| PreviewError::DownloadTimeExceeded {
+                elapsed: start_time.elapsed().as_secs(),
+                limit: self.content_limits.max_download_time,
+            })?
+            .map_err(|e| {
+                #[cfg(feature = "logging")]
+                error!(error = %e, url = %url, "Failed to send request");
+                PreviewError::from_reqwest_error(e)
+            })?;
 
         // Check for 404 or other error status codes
         if response.status() == 404 {
@@ -210,15 +268,82 @@ impl Fetcher {
             });
         }
 
-        let content = response.text().await.map_err(|e| {
-            #[cfg(feature = "logging")]
-            error!(error = %e, url = %url, "Failed to read response body");
-            PreviewError::FetchError(e.to_string())
-        })?;
+        // Check content type if configured
+        if !self.content_limits.allowed_content_types.is_empty() {
+            if let Some(content_type) = response.headers().get("content-type") {
+                if let Ok(content_type_str) = content_type.to_str() {
+                    let base_type = content_type_str.split(';').next().unwrap_or("").trim();
+                    if !self
+                        .content_limits
+                        .allowed_content_types
+                        .contains(base_type)
+                    {
+                        return Err(PreviewError::ContentTypeNotAllowed(base_type.to_string()));
+                    }
+                }
+            }
+        }
+
+        // Check content length if provided
+        if let Some(content_length) = response.headers().get("content-length") {
+            if let Ok(length_str) = content_length.to_str() {
+                if let Ok(length) = length_str.parse::<usize>() {
+                    if length > self.content_limits.max_content_size {
+                        return Err(PreviewError::ContentSizeExceeded {
+                            size: length,
+                            limit: self.content_limits.max_content_size,
+                        });
+                    }
+                }
+            }
+        }
+
+        // Read content with size limit
+        let content = self.read_response_with_limit(response, start_time).await?;
 
         #[cfg(feature = "logging")]
         debug!(url = %url, content_length = content.len(), "Successfully fetched webpage");
         Ok(content)
+    }
+
+    async fn read_response_with_limit(
+        &self,
+        response: Response,
+        start_time: Instant,
+    ) -> Result<String, PreviewError> {
+        let max_size = self.content_limits.max_content_size;
+        let max_time = Duration::from_secs(self.content_limits.max_download_time);
+
+        // Read response with timeout
+        let bytes = tokio::time::timeout(
+            max_time.saturating_sub(start_time.elapsed()),
+            response.bytes(),
+        )
+        .await
+        .map_err(|_| PreviewError::DownloadTimeExceeded {
+            elapsed: start_time.elapsed().as_secs(),
+            limit: self.content_limits.max_download_time,
+        })?
+        .map_err(|e| {
+            #[cfg(feature = "logging")]
+            error!(error = %e, "Failed to read response body");
+            PreviewError::FetchError(e.to_string())
+        })?;
+
+        // Check size limit
+        if bytes.len() > max_size {
+            return Err(PreviewError::ContentSizeExceeded {
+                size: bytes.len(),
+                limit: max_size,
+            });
+        }
+
+        // Convert bytes to string
+        String::from_utf8(bytes.to_vec()).map_err(|_e| {
+            #[cfg(feature = "logging")]
+            error!(error = %_e, "Response is not valid UTF-8");
+            PreviewError::FetchError("Invalid UTF-8 in response".to_string())
+        })
     }
 
     #[cfg(feature = "twitter")]
@@ -333,31 +458,17 @@ impl Fetcher {
 
         #[cfg(feature = "logging")]
         debug!("Twitter-specific fetcher created successfully");
-        Self { client }
+        Self {
+            client,
+            url_validator: UrlValidator::with_default_config(),
+            content_limits: ContentLimits::default(),
+        }
     }
 
     /// Creates a Fetcher with custom configuration
     /// This method allows users to provide their own configuration options
     pub fn new_with_config(config: FetcherConfig) -> Self {
-        let mut client_builder = Client::builder()
-            .user_agent(config.user_agent)
-            .timeout(config.timeout);
-
-        // Apply custom headers
-        if let Some(headers) = config.headers {
-            client_builder = client_builder.default_headers(headers);
-        }
-
-        // Apply redirect policy
-        if let Some(redirect_policy) = config.redirect_policy {
-            client_builder = client_builder.redirect(redirect_policy);
-        }
-
-        let client = client_builder
-            .build()
-            .expect("Failed to create HTTP client with custom config");
-
-        Self { client }
+        Self::with_config(config)
     }
 }
 
@@ -384,7 +495,11 @@ impl Fetcher {
             .build()
             .expect("Failed to create GitHub HTTP client");
 
-        Self { client }
+        Self {
+            client,
+            url_validator: UrlValidator::with_default_config(),
+            content_limits: ContentLimits::default(),
+        }
     }
 
     pub async fn fetch_github_repo(
@@ -624,24 +739,5 @@ impl Fetcher {
                 debug!("Found Open Graph image URL: {}", url);
                 url.to_string()
             })
-    }
-}
-
-/// Configuration for the Fetcher
-pub struct FetcherConfig {
-    pub user_agent: String,
-    pub timeout: Duration,
-    pub headers: Option<HeaderMap>,
-    pub redirect_policy: Option<reqwest::redirect::Policy>,
-}
-
-impl Default for FetcherConfig {
-    fn default() -> Self {
-        Self {
-            user_agent: "url_preview/0.1.0".to_string(),
-            timeout: Duration::from_secs(10),
-            headers: None,
-            redirect_policy: None,
-        }
     }
 }

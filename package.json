@@ -1,0 +1,24 @@
+{
+  "name": "url-preview",
+  "version": "1.0.0",
+  "description": "<div>   <h1 align=\"center\">url-preview</h1>   <h4 align=\"center\">     🦀 A high-performance Rust library for generating rich URL previews with specialized support for Twitter/X and GitHub.   </h4> </div>",
+  "main": "index.js",
+  "directories": {
+    "doc": "doc",
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git@github.com-urlpreview:ZhangHanDong/url-preview.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.54.1",
+    "@types/node": "^24.0.15"
+  }
+}

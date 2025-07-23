@@ -3,6 +3,7 @@ mod tests {
     use url_preview::{CacheStrategy, PreviewGenerator, PreviewService, UrlPreviewGenerator};
 
     #[tokio::test]
+    #[cfg_attr(not(feature = "default"), ignore = "requires TLS support")]
     async fn test_preview_generator() {
         let generator = UrlPreviewGenerator::new(100, CacheStrategy::UseCache);
 
@@ -20,6 +21,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[cfg_attr(not(feature = "default"), ignore = "requires TLS support")]
     async fn test_cache_functionality() {
         let generator = UrlPreviewGenerator::new(100, CacheStrategy::UseCache);
         let url = "https://www.rust-lang.org";
